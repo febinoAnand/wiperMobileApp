@@ -8,7 +8,8 @@
     "scheme": "wipeangle",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "bundleIdentifier": "com.railway.wipeangle"
     },
     "android": {
       "adaptiveIcon": {
@@ -17,7 +18,15 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.BLUETOOTH",
+        "android.permission.BLUETOOTH_ADMIN",
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.BLUETOOTH_SCAN",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ],
+      "package": "com.railway.wipeangle"
     },
     "web": {
       "output": "static",
@@ -39,6 +48,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "5a7b3806-ade8-4cb2-97c1-54c375dea262"
+      }
     }
   }
 }

@@ -1,98 +1,147 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
+import { AngleGauge } from '@/components/dashboard/angle-gauge';
+import { ConnectionBadge } from '@/components/dashboard/connection-badge';
+import { StatCard } from '@/components/dashboard/stat-card';
+import { TimerControl } from '@/components/dashboard/timer-control';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { useBluetooth } from '@/contexts/bluetooth-context';
+import { useCountdown } from '@/hooks/use-countdown';
+import { useWiperSession, type WiperSessionState } from '@/hooks/use-wiper-session';
+import { getCalibration, getTimeIntervalSeconds } from '@/services/storage';
+import type { CalibrationData } from '@/types/wiper';
 
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
-  return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
+export default function DashboardScreen() {
+  const router = useRouter();
+  const { status, connectedDevice, latestReading } = useBluetooth();
+
+  const [calibration, setCalibration] = useState<CalibrationData | null>(null);
+  const [intervalSeconds, setIntervalSeconds] = useState(60);
+  const [isSessionActive, setIsSessionActive] = useState(false);
+  const [summary, setSummary] = useState<WiperSessionState | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      getCalibration().then(setCalibration);
+      getTimeIntervalSeconds().then(setIntervalSeconds);
+    }, []),
   );
-}
 
-export default function HomeScreen() {
+  const center = calibration?.center ?? 0;
+  const { state, processReading, reset } = useWiperSession(center, isSessionActive);
+
+  useEffect(() => {
+    if (latestReading) {
+      processReading(latestReading);
+    }
+  }, [latestReading, processReading]);
+
+  const handleSessionComplete = useCallback(() => {
+    setIsSessionActive(false);
+    setSummary(state);
+  }, [state]);
+
+  const countdown = useCountdown(handleSessionComplete);
+  const canStart = status === 'connected' && calibration !== null;
+
+  const handleStart = useCallback(() => {
+    reset();
+    setSummary(null);
+    setIsSessionActive(true);
+    countdown.start(intervalSeconds);
+  }, [reset, countdown, intervalSeconds]);
+
+  const handleStop = useCallback(() => {
+    countdown.stop();
+    handleSessionComplete();
+  }, [countdown, handleSessionComplete]);
+
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          <ThemedView style={styles.header}>
+            <ThemedText type="subtitle">Dashboard</ThemedText>
+            <ConnectionBadge status={status} deviceName={connectedDevice?.name} onPress={() => router.push('/settings')} />
+          </ThemedView>
 
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
+          {status === 'connected' && calibration === null && (
+            <ThemedView type="backgroundElement" style={styles.notice}>
+              <ThemedText type="small">Run Calibration before starting a session.</ThemedText>
+            </ThemedView>
+          )}
 
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
+          <TimerControl
+            intervalSeconds={intervalSeconds}
+            remainingSeconds={countdown.remainingSeconds}
+            isRunning={countdown.isRunning}
+            canStart={canStart}
+            onStart={handleStart}
+            onStop={handleStop}
           />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
 
-        {Platform.OS === 'web' && <WebBadge />}
+          {summary ? (
+            <ThemedView type="backgroundElement" style={styles.summary}>
+              <ThemedText type="subtitle">Session complete</ThemedText>
+              <ThemedView style={styles.statsGrid}>
+                <StatCard label="Angle" value={summary.currentAngle.toFixed(1)} unit="°" />
+                <StatCard label="Pressure" value={summary.pressure.toFixed(2)} unit="bar" />
+              </ThemedView>
+              <Pressable
+                onPress={handleStart}
+                disabled={!canStart}
+                style={({ pressed }) => [styles.newSessionButton, (pressed || !canStart) && styles.disabled]}>
+                <ThemedText type="smallBold" style={styles.newSessionText}>
+                  New Session
+                </ThemedText>
+              </Pressable>
+            </ThemedView>
+          ) : (
+            <>
+              <AngleGauge currentAngle={state.currentAngle} />
+              <ThemedView style={styles.statsGrid}>
+                <StatCard label="Angle" value={state.currentAngle.toFixed(1)} unit="°" />
+                <StatCard label="Pressure" value={state.pressure.toFixed(2)} unit="bar" />
+              </ThemedView>
+            </>
+          )}
+        </ScrollView>
       </SafeAreaView>
     </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    flexDirection: 'row',
-  },
-  safeArea: {
-    flex: 1,
+  container: { flex: 1 },
+  safeArea: { flex: 1 },
+  scrollContent: {
     paddingHorizontal: Spacing.four,
-    alignItems: 'center',
-    gap: Spacing.three,
     paddingBottom: BottomTabInset + Spacing.three,
+    gap: Spacing.four,
+    alignSelf: 'center',
+    width: '100%',
     maxWidth: MaxContentWidth,
   },
-  heroSection: {
+  header: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
+    justifyContent: 'space-between',
+    marginTop: Spacing.three,
   },
-  title: {
-    textAlign: 'center',
+  notice: { borderRadius: Spacing.three, padding: Spacing.three },
+  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.three, justifyContent: 'space-between' },
+  summary: { borderRadius: Spacing.four, padding: Spacing.four, gap: Spacing.three },
+  newSessionButton: {
+    backgroundColor: '#3c87f7',
+    borderRadius: Spacing.five,
+    paddingVertical: Spacing.three,
+    alignItems: 'center',
   },
-  code: {
-    textTransform: 'uppercase',
-  },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
-  },
+  disabled: { opacity: 0.5 },
+  newSessionText: { color: '#ffffff' },
 });
