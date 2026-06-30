@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CalibrationStep } from '@/components/calibration/calibration-step';
@@ -8,17 +8,44 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useBluetooth } from '@/contexts/bluetooth-context';
-import { setCalibration } from '@/services/storage';
+import { clearCalibration, setCalibration } from '@/services/storage';
+
+type CapturingStep = 'initial' | 'end' | null;
 
 export default function CalibrationScreen() {
   const router = useRouter();
-  const { status, latestReading } = useBluetooth();
+  const { status, latestReading, write, sendCommand } = useBluetooth();
   const [initialAngle, setInitialAngle] = useState<number | null>(null);
   const [endAngle, setEndAngle] = useState<number | null>(null);
+  const [capturingStep, setCapturingStep] = useState<CapturingStep>(null);
+  const [isResetting, setIsResetting] = useState(false);
 
   const liveAngle = latestReading?.angle ?? 0;
   const center = initialAngle !== null && endAngle !== null ? (initialAngle + endAngle) / 2 : null;
   const canSave = center !== null;
+
+  const capture = useCallback(
+    async (step: 'initial' | 'end') => {
+      setCapturingStep(step);
+      try {
+        const ack = await sendCommand({ cmd: step === 'initial' ? 'set_initial' : 'set_end' });
+        if (ack.status !== 'ok') {
+          throw new Error(`Device reported status "${ack.status}"`);
+        }
+        const angle = ack.angle ?? liveAngle;
+        if (step === 'initial') {
+          setInitialAngle(angle);
+        } else {
+          setEndAngle(angle);
+        }
+      } catch {
+        Alert.alert('Capture failed', "Couldn't get a response from the device. Make sure it's connected and try again.");
+      } finally {
+        setCapturingStep(null);
+      }
+    },
+    [sendCommand, liveAngle],
+  );
 
   const handleSave = useCallback(async () => {
     if (initialAngle === null || endAngle === null) {
@@ -28,11 +55,32 @@ export default function CalibrationScreen() {
     router.back();
   }, [initialAngle, endAngle, router]);
 
+  const handleResetCalibration = useCallback(async () => {
+    setIsResetting(true);
+    try {
+      await write(JSON.stringify({ cmd: 'reset_calib' }));
+    } catch {
+      Alert.alert('Send failed', "Couldn't send the reset command to the device.");
+    } finally {
+      setIsResetting(false);
+    }
+    setInitialAngle(null);
+    setEndAngle(null);
+    await clearCalibration();
+  }, [write]);
+
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <ScrollView contentContainerStyle={styles.content}>
-          <ThemedText type="subtitle">Calibration</ThemedText>
+          <ThemedView style={styles.header}>
+            <ThemedText type="subtitle">Calibration</ThemedText>
+            <Pressable onPress={handleResetCalibration} disabled={isResetting}>
+              <ThemedText type="link" themeColor="textSecondary">
+                {isResetting ? 'Resetting…' : 'Reset'}
+              </ThemedText>
+            </Pressable>
+          </ThemedView>
 
           {status !== 'connected' && (
             <ThemedView type="backgroundElement" style={styles.notice}>
@@ -48,14 +96,16 @@ export default function CalibrationScreen() {
             title="Initial position"
             liveAngle={liveAngle}
             capturedAngle={initialAngle}
-            onCapture={() => setInitialAngle(liveAngle)}
+            isCapturing={capturingStep === 'initial'}
+            onCapture={() => capture('initial')}
           />
 
           <CalibrationStep
             title="End position"
             liveAngle={liveAngle}
             capturedAngle={endAngle}
-            onCapture={() => setEndAngle(liveAngle)}
+            isCapturing={capturingStep === 'end'}
+            onCapture={() => capture('end')}
           />
 
           <ThemedView type="backgroundElement" style={styles.centerCard}>
@@ -92,6 +142,7 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: MaxContentWidth,
   },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   notice: { borderRadius: Spacing.three, padding: Spacing.three },
   centerCard: { borderRadius: Spacing.three, padding: Spacing.four, alignItems: 'center', gap: Spacing.one },
   centerValue: { fontSize: 36, lineHeight: 40 },

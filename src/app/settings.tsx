@@ -17,6 +17,18 @@ export default function SettingsScreen() {
   const { pairedDevices, connectedDevice, refreshPairedDevices, connect, disconnect } = useBluetooth();
   const [connectingId, setConnectingId] = useState<string | null>(null);
   const [intervalSeconds, setIntervalSeconds] = useState(60);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      await refreshPairedDevices();
+    } catch {
+      Alert.alert('Refresh failed', "Couldn't load paired devices. Make sure Bluetooth is turned on.");
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [refreshPairedDevices]);
 
   useEffect(() => {
     getTimeIntervalSeconds().then(setIntervalSeconds);
@@ -55,9 +67,9 @@ export default function SettingsScreen() {
           <ThemedView style={styles.section}>
             <ThemedView style={styles.sectionHeader}>
               <ThemedText type="smallBold">Paired devices</ThemedText>
-              <Pressable onPress={refreshPairedDevices}>
+              <Pressable onPress={handleRefresh} disabled={isRefreshing}>
                 <ThemedText type="link" themeColor="textSecondary">
-                  Refresh
+                  {isRefreshing ? 'Refreshing…' : 'Refresh'}
                 </ThemedText>
               </Pressable>
             </ThemedView>

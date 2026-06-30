@@ -11,6 +11,7 @@ export type TimerControlProps = {
   canStart: boolean;
   onStart: () => void;
   onStop: () => void;
+  onReset: () => void;
 };
 
 function formatSeconds(totalSeconds: number) {
@@ -26,6 +27,7 @@ export function TimerControl({
   canStart,
   onStart,
   onStop,
+  onReset,
 }: TimerControlProps) {
   const disabled = !isRunning && !canStart;
 
@@ -39,18 +41,27 @@ export function TimerControl({
           {formatSeconds(isRunning ? remainingSeconds : intervalSeconds)}
         </ThemedText>
       </ThemedView>
-      <Pressable
-        disabled={disabled}
-        onPress={isRunning ? onStop : onStart}
-        style={({ pressed }) => [
-          styles.button,
-          { backgroundColor: isRunning ? '#e0524d' : '#3c87f7' },
-          (pressed || disabled) && styles.disabled,
-        ]}>
-        <ThemedText type="smallBold" style={styles.buttonText}>
-          {isRunning ? 'Stop' : 'Start'}
-        </ThemedText>
-      </Pressable>
+      <ThemedView style={styles.buttonRow}>
+        <Pressable
+          onPress={onReset}
+          style={({ pressed }) => [styles.button, styles.resetButton, pressed && styles.disabled]}>
+          <ThemedText type="smallBold" style={styles.resetButtonText}>
+            Reset
+          </ThemedText>
+        </Pressable>
+        <Pressable
+          disabled={disabled}
+          onPress={isRunning ? onStop : onStart}
+          style={({ pressed }) => [
+            styles.button,
+            { backgroundColor: isRunning ? '#e0524d' : '#3c87f7' },
+            (pressed || disabled) && styles.disabled,
+          ]}>
+          <ThemedText type="smallBold" style={styles.buttonText}>
+            {isRunning ? 'Stop' : 'Start'}
+          </ThemedText>
+        </Pressable>
+      </ThemedView>
     </ThemedView>
   );
 }
@@ -66,11 +77,14 @@ const styles = StyleSheet.create({
   },
   timerColumn: { gap: Spacing.half },
   timer: { fontSize: 36, lineHeight: 40 },
+  buttonRow: { flexDirection: 'row', gap: Spacing.two },
   button: {
     paddingHorizontal: Spacing.five,
     paddingVertical: Spacing.three,
     borderRadius: Spacing.five,
   },
+  resetButton: { backgroundColor: '#6b7280' },
   disabled: { opacity: 0.5 },
   buttonText: { color: '#ffffff' },
+  resetButtonText: { color: '#ffffff' },
 });

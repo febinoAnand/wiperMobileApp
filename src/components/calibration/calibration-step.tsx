@@ -8,10 +8,11 @@ export type CalibrationStepProps = {
   title: string;
   liveAngle: number;
   capturedAngle: number | null;
+  isCapturing: boolean;
   onCapture: () => void;
 };
 
-export function CalibrationStep({ title, liveAngle, capturedAngle, onCapture }: CalibrationStepProps) {
+export function CalibrationStep({ title, liveAngle, capturedAngle, isCapturing, onCapture }: CalibrationStepProps) {
   return (
     <ThemedView type="backgroundElement" style={styles.container}>
       <ThemedView style={styles.header}>
@@ -20,9 +21,12 @@ export function CalibrationStep({ title, liveAngle, capturedAngle, onCapture }: 
           {capturedAngle !== null ? `Captured: ${capturedAngle.toFixed(1)}°` : `Live: ${liveAngle.toFixed(1)}°`}
         </ThemedText>
       </ThemedView>
-      <Pressable onPress={onCapture} style={({ pressed }) => [styles.button, pressed && styles.pressed]}>
+      <Pressable
+        onPress={onCapture}
+        disabled={isCapturing}
+        style={({ pressed }) => [styles.button, (pressed || isCapturing) && styles.pressed]}>
         <ThemedText type="smallBold" style={styles.buttonText}>
-          {capturedAngle !== null ? 'Recapture' : 'Capture'}
+          {isCapturing ? 'Capturing…' : capturedAngle !== null ? 'Recapture' : 'Capture'}
         </ThemedText>
       </Pressable>
     </ThemedView>

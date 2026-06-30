@@ -26,11 +26,6 @@ export default function AppTabs() {
         <NativeTabs.Trigger.Label>Settings</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="gearshape" md="settings" />
       </NativeTabs.Trigger>
-
-      <NativeTabs.Trigger name="log">
-        <NativeTabs.Trigger.Label>Log</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon sf="list.bullet" md="list" />
-      </NativeTabs.Trigger>
     </NativeTabs>
   );
 }

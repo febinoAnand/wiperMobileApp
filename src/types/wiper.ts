@@ -1,8 +1,36 @@
 export type WiperReading = {
   angle: number;
   pressure: number;
-  count: number;
   timestamp: number;
+  /** Present on `{"type":"wipe",...}` events - the device's running wipe sequence number. */
+  seq?: number;
+  dir?: string;
+};
+
+/** Response to a command, e.g. `{"type":"ack","cmd":"set_initial","status":"ok","angle":42.3}`. */
+export type AckMessage = {
+  type: 'ack';
+  cmd: string;
+  status: string;
+  angle?: number;
+};
+
+/** One entry within a `resend` session report batch. */
+export type WipeRecord = {
+  seq: number;
+  dir: string;
+  angle: number;
+  pressure: number;
+};
+
+/** Full session report assembled from `session_start` + `batch`(es) + `session_end` after a `resend` command. */
+export type SessionReport = {
+  wiperNo: number | string;
+  timestamp: number;
+  duration: number;
+  wipes: number;
+  strokes: number;
+  records: WipeRecord[];
 };
 
 export type CalibrationData = {

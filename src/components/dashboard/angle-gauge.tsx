@@ -1,6 +1,7 @@
 import { StyleSheet, View } from 'react-native';
 import Svg, { Circle, Line, Path } from 'react-native-svg';
 
+import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -9,10 +10,10 @@ const RADIUS = SIZE / 2 - 10;
 const CENTER_X = SIZE / 2;
 const CENTER_Y = SIZE / 2;
 
-/** 0deg = straight up, positive = right, negative = left. */
+/** Maps a 0-180 angle onto the semicircle: 0 = full left, 90 = straight up, 180 = full right. */
 function angleToPoint(angleDeg: number, length: number) {
-  const clamped = Math.max(-90, Math.min(90, angleDeg));
-  const radians = (clamped * Math.PI) / 180;
+  const clamped = Math.max(0, Math.min(180, angleDeg));
+  const radians = ((clamped - 90) * Math.PI) / 180;
   return {
     x: CENTER_X + length * Math.sin(radians),
     y: CENTER_Y - length * Math.cos(radians),
@@ -20,12 +21,12 @@ function angleToPoint(angleDeg: number, length: number) {
 }
 
 export type AngleGaugeProps = {
-  currentAngle: number;
+  angle: number;
 };
 
-export function AngleGauge({ currentAngle }: AngleGaugeProps) {
+export function AngleGauge({ angle }: AngleGaugeProps) {
   const theme = useTheme();
-  const needle = angleToPoint(currentAngle, RADIUS - 16);
+  const needle = angleToPoint(angle, RADIUS - 16);
 
   return (
     <View style={styles.container}>
@@ -39,10 +40,26 @@ export function AngleGauge({ currentAngle }: AngleGaugeProps) {
         <Line x1={CENTER_X} y1={CENTER_Y} x2={needle.x} y2={needle.y} stroke={theme.text} strokeWidth={4} />
         <Circle cx={CENTER_X} cy={CENTER_Y} r={5} fill={theme.text} />
       </Svg>
+      <View style={styles.scale}>
+        <ThemedText type="small" themeColor="textSecondary">
+          0°
+        </ThemedText>
+        <ThemedText type="small" themeColor="textSecondary">
+          90°
+        </ThemedText>
+        <ThemedText type="small" themeColor="textSecondary">
+          180°
+        </ThemedText>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { alignItems: 'center', gap: Spacing.two },
+  scale: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: SIZE,
+  },
 });

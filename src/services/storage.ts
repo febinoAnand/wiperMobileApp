@@ -19,6 +19,10 @@ export async function setCalibration(calibration: CalibrationData): Promise<void
   await AsyncStorage.setItem(KEYS.calibration, JSON.stringify(calibration));
 }
 
+export async function clearCalibration(): Promise<void> {
+  await AsyncStorage.removeItem(KEYS.calibration);
+}
+
 export async function getTimeIntervalSeconds(): Promise<number> {
   const raw = await AsyncStorage.getItem(KEYS.timeIntervalSeconds);
   return raw ? Number(raw) : DEFAULT_TIME_INTERVAL_SECONDS;

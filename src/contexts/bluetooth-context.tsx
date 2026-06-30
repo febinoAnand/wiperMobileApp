@@ -2,20 +2,19 @@ import { createContext, type ReactNode, useCallback, useContext, useEffect, useM
 
 import { getBluetoothService } from '@/services/bluetooth';
 import { setLastDeviceId } from '@/services/storage';
-import type { BluetoothDeviceInfo, ConnectionStatus, WiperReading } from '@/types/wiper';
-
-const MAX_LOG_ENTRIES = 200;
+import type { AckMessage, BluetoothDeviceInfo, ConnectionStatus, SessionReport, WiperReading } from '@/types/wiper';
 
 type BluetoothContextValue = {
   pairedDevices: BluetoothDeviceInfo[];
   status: ConnectionStatus;
   connectedDevice: BluetoothDeviceInfo | null;
   latestReading: WiperReading | null;
-  readingLog: WiperReading[];
   refreshPairedDevices: () => Promise<void>;
   connect: (deviceId: string) => Promise<void>;
   disconnect: () => Promise<void>;
-  clearLog: () => void;
+  write: (data: string) => Promise<void>;
+  sendCommand: (payload: { cmd: string } & Record<string, unknown>, timeoutMs?: number) => Promise<AckMessage>;
+  fetchSessionReport: (wiperNo: number | string, timeoutMs?: number) => Promise<SessionReport>;
 };
 
 const BluetoothContext = createContext<BluetoothContextValue | null>(null);
@@ -26,15 +25,11 @@ export function BluetoothProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<ConnectionStatus>('disconnected');
   const [connectedDevice, setConnectedDevice] = useState<BluetoothDeviceInfo | null>(null);
   const [latestReading, setLatestReading] = useState<WiperReading | null>(null);
-  const [readingLog, setReadingLog] = useState<WiperReading[]>([]);
 
   useEffect(() => {
     service.listBondedDevices().then(setPairedDevices).catch(() => {});
 
-    const unsubscribeReading = service.onReading((reading) => {
-      setLatestReading(reading);
-      setReadingLog((previous) => [reading, ...previous].slice(0, MAX_LOG_ENTRIES));
-    });
+    const unsubscribeReading = service.onReading(setLatestReading);
     const unsubscribeConnection = service.onConnectionChange((nextStatus, device) => {
       setStatus(nextStatus);
       setConnectedDevice(device ?? null);
@@ -45,8 +40,6 @@ export function BluetoothProvider({ children }: { children: ReactNode }) {
       unsubscribeConnection();
     };
   }, [service]);
-
-  const clearLog = useCallback(() => setReadingLog([]), []);
 
   const refreshPairedDevices = useCallback(async () => {
     setPairedDevices(await service.listBondedDevices());
@@ -64,19 +57,48 @@ export function BluetoothProvider({ children }: { children: ReactNode }) {
     await service.disconnect();
   }, [service]);
 
+  const write = useCallback(
+    async (data: string) => {
+      await service.write(data);
+    },
+    [service],
+  );
+
+  const sendCommand = useCallback(
+    async (payload: { cmd: string } & Record<string, unknown>, timeoutMs?: number) => service.sendCommand(payload, timeoutMs),
+    [service],
+  );
+
+  const fetchSessionReport = useCallback(
+    async (wiperNo: number | string, timeoutMs?: number) => service.fetchSessionReport(wiperNo, timeoutMs),
+    [service],
+  );
+
   const value = useMemo<BluetoothContextValue>(
     () => ({
       pairedDevices,
       status,
       connectedDevice,
       latestReading,
-      readingLog,
       refreshPairedDevices,
       connect,
       disconnect,
-      clearLog,
+      write,
+      sendCommand,
+      fetchSessionReport,
     }),
-    [pairedDevices, status, connectedDevice, latestReading, readingLog, refreshPairedDevices, connect, disconnect, clearLog],
+    [
+      pairedDevices,
+      status,
+      connectedDevice,
+      latestReading,
+      refreshPairedDevices,
+      connect,
+      disconnect,
+      write,
+      sendCommand,
+      fetchSessionReport,
+    ],
   );
 
   return <BluetoothContext.Provider value={value}>{children}</BluetoothContext.Provider>;
