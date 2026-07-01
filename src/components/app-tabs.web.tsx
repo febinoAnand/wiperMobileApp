@@ -8,10 +8,16 @@ import { ThemedView } from './themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
-const TABS: { name: string; href: '/' | '/calibration' | '/settings'; label: string; icon: SymbolViewProps['name'] }[] = [
+const TABS: {
+  name: string;
+  href: '/' | '/calibration' | '/settings' | '/reports';
+  label: string;
+  icon: SymbolViewProps['name'];
+}[] = [
   { name: 'index', href: '/', label: 'Dashboard', icon: { web: 'speed' } },
   { name: 'calibration', href: '/calibration', label: 'Calibration', icon: { web: 'tune' } },
   { name: 'settings', href: '/settings', label: 'Settings', icon: { web: 'settings' } },
+  { name: 'reports', href: '/reports', label: 'Reports', icon: { web: 'history' } },
 ];
 
 export default function AppTabs() {

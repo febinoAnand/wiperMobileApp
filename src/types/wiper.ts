@@ -33,6 +33,9 @@ export type SessionReport = {
   records: WipeRecord[];
 };
 
+/** A SessionReport saved to the on-device reports list, tagged with a unique id for list rendering. */
+export type SessionReportEntry = SessionReport & { id: string };
+
 export type CalibrationData = {
   initialAngle: number;
   endAngle: number;

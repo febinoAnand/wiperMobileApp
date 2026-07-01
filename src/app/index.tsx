@@ -14,7 +14,7 @@ import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useBluetooth } from '@/contexts/bluetooth-context';
 import { useCountdown } from '@/hooks/use-countdown';
-import { getCalibration, getTimeIntervalSeconds } from '@/services/storage';
+import { addSessionReport, getCalibration, getTimeIntervalSeconds } from '@/services/storage';
 import type { CalibrationData, SessionReport } from '@/types/wiper';
 
 type LiveReading = { angle: number; pressure: number };
@@ -66,7 +66,10 @@ export default function DashboardScreen() {
     if (currentWiperNo) {
       setIsLoadingReport(true);
       fetchSessionReport(currentWiperNo)
-        .then(setReport)
+        .then((fetchedReport) => {
+          setReport(fetchedReport);
+          addSessionReport(fetchedReport).catch(() => {});
+        })
         .catch(() => Alert.alert('Report failed', "Couldn't fetch the session report from the device."))
         .finally(() => setIsLoadingReport(false));
     }
@@ -192,11 +195,6 @@ export default function DashboardScreen() {
                 <StatCard label="Stroke" value={String(strokeCount)} />
                 <StatCard label="Wipes count" value={String(wipesCount)} />
               </ThemedView>
-              <ThemedText type="small" themeColor="textSecondary" style={styles.lastReceived}>
-                {latestReading
-                  ? `Last received ${new Date(latestReading.timestamp).toLocaleTimeString()}`
-                  : 'No data received yet.'}
-              </ThemedText>
             </>
           )}
         </ScrollView>
