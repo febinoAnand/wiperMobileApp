@@ -13,7 +13,9 @@ export type WiperReading = {
   /** Present on `{"type":"wipe",...}` events - the device's running wipe sequence number. */
   seq?: number;
   dir?: string;
-  /** Which physical wiper this reading belongs to. Absent on legacy single-wiper firmware. */
+  /** New firmware: "left" or "right". */
+  wiper?: string;
+  /** Legacy firmware: numeric wiper identifier. */
   wiper_no?: number | string;
 };
 
@@ -46,6 +48,15 @@ export type SessionReport = {
 
 /** A SessionReport saved to the on-device reports list, tagged with a unique id for list rendering. */
 export type SessionReportEntry = SessionReport & { id: string };
+
+/** Dual-wiper session report (left + right collected simultaneously). */
+export type DualSessionReport = {
+  timestamp: number;
+  left: SessionReport;
+  right: SessionReport;
+};
+
+export type DualSessionReportEntry = DualSessionReport & { id: string };
 
 export type SensorCalibration = {
   initialAngle: number;

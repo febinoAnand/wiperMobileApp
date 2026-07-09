@@ -108,6 +108,15 @@ export function parseLine(line: string): ParsedMessage | null {
     return { kind: 'sessionEnd' };
   }
 
+  // New firmware wipe event: {"type":"wipe","wiper":"left","seq":7,"dir":"fwd","angle":114.5,"pressure":5.15}
+  if (value.type === 'wipe' && typeof value.seq === 'number' && typeof value.angle === 'number' && typeof value.pressure === 'number') {
+    const reading: WiperReading = { angle: value.angle, pressure: value.pressure, timestamp: Date.now(), seq: value.seq };
+    if (typeof value.dir === 'string') reading.dir = value.dir;
+    if (typeof value.wiper === 'string') reading.wiper = value.wiper;
+    if (typeof value.wiper_no === 'number' || typeof value.wiper_no === 'string') reading.wiper_no = value.wiper_no;
+    return { kind: 'reading', reading };
+  }
+
   if (typeof value.angleL === 'number' && typeof value.angleR === 'number' && typeof value.pressure === 'number') {
     return {
       kind: 'dualReading',

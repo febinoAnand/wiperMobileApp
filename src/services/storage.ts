@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import type { CalibrationData, SessionReport, SessionReportEntry } from '@/types/wiper';
+import type { CalibrationData, DualSessionReport, DualSessionReportEntry, SessionReport, SessionReportEntry } from '@/types/wiper';
 
 const KEYS = {
   calibration: 'wipeangle.calibration',
@@ -8,6 +8,7 @@ const KEYS = {
   lastDeviceId: 'wipeangle.lastDeviceId',
   selectedDevice: 'wipeangle.selectedDevice',
   sessionReports: 'wipeangle.sessionReports',
+  dualSessionReports: 'wipeangle.dualSessionReports',
 } as const;
 
 export type SelectedDevice = { id: string; name: string };
@@ -73,4 +74,20 @@ export async function addSessionReport(report: SessionReport): Promise<void> {
 
 export async function clearSessionReports(): Promise<void> {
   await AsyncStorage.removeItem(KEYS.sessionReports);
+}
+
+export async function getDualSessionReports(): Promise<DualSessionReportEntry[]> {
+  const raw = await AsyncStorage.getItem(KEYS.dualSessionReports);
+  return raw ? (JSON.parse(raw) as DualSessionReportEntry[]) : [];
+}
+
+export async function addDualSessionReport(report: DualSessionReport): Promise<void> {
+  const existing = await getDualSessionReports();
+  const entry: DualSessionReportEntry = { ...report, id: `${Date.now()}` };
+  const updated = [entry, ...existing].slice(0, MAX_REPORT_ENTRIES);
+  await AsyncStorage.setItem(KEYS.dualSessionReports, JSON.stringify(updated));
+}
+
+export async function clearDualSessionReports(): Promise<void> {
+  await AsyncStorage.removeItem(KEYS.dualSessionReports);
 }

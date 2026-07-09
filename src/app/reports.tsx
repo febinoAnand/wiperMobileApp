@@ -6,21 +6,24 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { SessionReportTable } from '@/components/dashboard/session-report-table';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
-import { clearSessionReports, getSessionReports } from '@/services/storage';
-import type { SessionReportEntry } from '@/types/wiper';
+import { BottomTabInset, Brand, MaxContentWidth, Spacing } from '@/constants/theme';
+import { clearDualSessionReports, getDualSessionReports } from '@/services/storage';
+import type { DualSessionReportEntry } from '@/types/wiper';
 
-function formatEntryDate(timestampSeconds: number) {
+type WiperTab = 'left' | 'right';
+
+function formatDate(timestampSeconds: number) {
   return new Date(timestampSeconds * 1000).toLocaleString();
 }
 
 export default function ReportsScreen() {
-  const [reports, setReports] = useState<SessionReportEntry[]>([]);
+  const [reports, setReports] = useState<DualSessionReportEntry[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [tabByEntry, setTabByEntry] = useState<Record<string, WiperTab>>({});
 
   useFocusEffect(
     useCallback(() => {
-      getSessionReports().then(setReports);
+      getDualSessionReports().then(setReports);
     }, []),
   );
 
@@ -31,13 +34,18 @@ export default function ReportsScreen() {
         text: 'Clear',
         style: 'destructive',
         onPress: async () => {
-          await clearSessionReports();
+          await clearDualSessionReports();
           setExpandedId(null);
           setReports([]);
         },
       },
     ]);
   }, []);
+
+  const getTab = (id: string): WiperTab => tabByEntry[id] ?? 'left';
+
+  const setTab = (id: string, tab: WiperTab) =>
+    setTabByEntry((prev) => ({ ...prev, [id]: tab }));
 
   return (
     <ThemedView style={styles.container}>
@@ -59,25 +67,69 @@ export default function ReportsScreen() {
           ) : (
             reports.map((entry) => {
               const isExpanded = expandedId === entry.id;
+              const activeTab = getTab(entry.id);
+              const activeReport = activeTab === 'left' ? entry.left : entry.right;
+
               return (
                 <ThemedView key={entry.id} style={styles.entry}>
+                  {/* Collapsed row */}
                   <Pressable
                     onPress={() => setExpandedId(isExpanded ? null : entry.id)}
                     style={({ pressed }) => pressed && styles.pressed}>
                     <ThemedView type="backgroundElement" style={styles.entryRow}>
                       <View style={styles.entryInfo}>
-                        <ThemedText type="smallBold">Wiper {entry.wiperNo}</ThemedText>
+                        <ThemedText type="smallBold">
+                          Left {entry.left.wiperNo} · Right {entry.right.wiperNo}
+                        </ThemedText>
                         <ThemedText type="small" themeColor="textSecondary">
-                          {formatEntryDate(entry.timestamp)}
+                          {formatDate(entry.timestamp)}
                         </ThemedText>
                       </View>
-                      <ThemedText type="small" themeColor="textSecondary">
-                        {entry.wipes} wipes · {entry.strokes} strokes
-                      </ThemedText>
+                      <View style={styles.entryStats}>
+                        <ThemedText type="small" themeColor="textSecondary">
+                          L: {entry.left.wipes} wipes
+                        </ThemedText>
+                        <ThemedText type="small" themeColor="textSecondary">
+                          R: {entry.right.wipes} wipes
+                        </ThemedText>
+                      </View>
                     </ThemedView>
                   </Pressable>
 
-                  {isExpanded && <SessionReportTable records={entry.records} />}
+                  {/* Expanded detail */}
+                  {isExpanded && (
+                    <ThemedView type="backgroundElement" style={styles.expandedCard}>
+                      {/* Tab bar */}
+                      <View style={styles.tabRow}>
+                        <Pressable
+                          onPress={() => setTab(entry.id, 'left')}
+                          style={[styles.tab, activeTab === 'left' && styles.tabActive]}>
+                          <ThemedText
+                            type="smallBold"
+                            style={activeTab === 'left' ? styles.tabTextActive : styles.tabTextInactive}>
+                            Left
+                          </ThemedText>
+                        </Pressable>
+                        <Pressable
+                          onPress={() => setTab(entry.id, 'right')}
+                          style={[styles.tab, activeTab === 'right' && styles.tabActive]}>
+                          <ThemedText
+                            type="smallBold"
+                            style={activeTab === 'right' ? styles.tabTextActive : styles.tabTextInactive}>
+                            Right
+                          </ThemedText>
+                        </Pressable>
+                      </View>
+
+                      {/* Summary row */}
+                      <ThemedText type="small" themeColor="textSecondary" style={styles.summary}>
+                        Wiper {activeReport.wiperNo} · {activeReport.wipes} wipes · {activeReport.strokes} strokes
+                      </ThemedText>
+
+                      {/* Records table */}
+                      <SessionReportTable records={activeReport.records} />
+                    </ThemedView>
+                  )}
                 </ThemedView>
               );
             })
@@ -110,5 +162,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.four,
     paddingVertical: Spacing.three,
   },
-  entryInfo: { gap: Spacing.half },
+  entryInfo: { gap: Spacing.half, flex: 1 },
+  entryStats: { alignItems: 'flex-end', gap: Spacing.half },
+  expandedCard: {
+    borderRadius: Spacing.three,
+    padding: Spacing.three,
+    gap: Spacing.three,
+  },
+  tabRow: {
+    flexDirection: 'row',
+    borderRadius: Spacing.two,
+    overflow: 'hidden',
+    backgroundColor: '#7A889820',
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: Spacing.two,
+    alignItems: 'center',
+    borderRadius: Spacing.two,
+  },
+  tabActive: { backgroundColor: Brand.primary },
+  tabTextActive: { color: '#ffffff' },
+  tabTextInactive: { color: '#7A8898' },
+  summary: { paddingHorizontal: Spacing.one },
 });

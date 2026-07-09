@@ -12,8 +12,10 @@ import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, Brand, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useBluetooth } from '@/contexts/bluetooth-context';
 import { useCountdown } from '@/hooks/use-countdown';
-import { addSessionReport, getCalibration, getSelectedDevice, getTimeIntervalSeconds } from '@/services/storage';
+import { addDualSessionReport, getCalibration, getSelectedDevice, getTimeIntervalSeconds } from '@/services/storage';
 import type { CalibrationData, DualWiperReading, SessionReport, WiperReading } from '@/types/wiper';
+
+type WiperTab = 'left' | 'right';
 
 function fmtSeconds(totalSeconds: number) {
   const m = Math.floor(totalSeconds / 60);
@@ -45,9 +47,12 @@ export default function DashboardScreen() {
   // ── Session state ──────────────────────────────────────────────────────────
   const [isStartModalVisible, setIsStartModalVisible] = useState(false);
   const [showCompletion, setShowCompletion] = useState(false);
-  const [currentWiperNo, setCurrentWiperNo] = useState<string | null>(null);
-  const [report, setReport] = useState<SessionReport | null>(null);
+  const [currentLeftWiperNo, setCurrentLeftWiperNo] = useState<string | null>(null);
+  const [currentRightWiperNo, setCurrentRightWiperNo] = useState<string | null>(null);
+  const [leftReport, setLeftReport] = useState<SessionReport | null>(null);
+  const [rightReport, setRightReport] = useState<SessionReport | null>(null);
   const [isLoadingReport, setIsLoadingReport] = useState(false);
+  const [completionTab, setCompletionTab] = useState<WiperTab>('left');
 
   // ── Per-wiper live data ────────────────────────────────────────────────────
   const [wLAngle, setWLAngle] = useState(0);
@@ -74,7 +79,7 @@ export default function DashboardScreen() {
   if (latestReading !== lastReading) {
     setLastReading(latestReading);
     if (latestReading && typeof latestReading.seq === 'number') {
-      const isRight = String(latestReading.wiper_no) === '2';
+      const isRight = latestReading.wiper === 'right' || String(latestReading.wiper_no) === '2';
       if (isRight) {
         setWRWipes(latestReading.seq);
         setWRStrokes(Math.floor(latestReading.seq / 2));
@@ -88,18 +93,28 @@ export default function DashboardScreen() {
   // ── Countdown + session callbacks ──────────────────────────────────────────
   const handleSessionComplete = useCallback(() => {
     setShowCompletion(true);
-    setReport(null);
-    if (currentWiperNo) {
+    setLeftReport(null);
+    setRightReport(null);
+    setCompletionTab('left');
+    if (currentLeftWiperNo && currentRightWiperNo) {
       setIsLoadingReport(true);
-      fetchSessionReport(currentWiperNo)
-        .then((r) => {
-          setReport(r);
-          addSessionReport(r).catch(() => {});
+      Promise.all([
+        fetchSessionReport(currentLeftWiperNo),
+        fetchSessionReport(currentRightWiperNo),
+      ])
+        .then(([lReport, rReport]) => {
+          setLeftReport(lReport);
+          setRightReport(rReport);
+          addDualSessionReport({
+            timestamp: Math.floor(Date.now() / 1000),
+            left: lReport,
+            right: rReport,
+          }).catch(() => {});
         })
         .catch(() => Alert.alert('Report failed', "Couldn't fetch the session report from the device."))
         .finally(() => setIsLoadingReport(false));
     }
-  }, [currentWiperNo, fetchSessionReport]);
+  }, [currentLeftWiperNo, currentRightWiperNo, fetchSessionReport]);
 
   const countdown = useCountdown(handleSessionComplete);
   const canStart = status === 'connected' && calibration !== null;
@@ -107,7 +122,8 @@ export default function DashboardScreen() {
 
   const handleReset = useCallback(() => {
     setShowCompletion(false);
-    setReport(null);
+    setLeftReport(null);
+    setRightReport(null);
     setWLWipes(0);
     setWLStrokes(0);
     setWRWipes(0);
@@ -131,9 +147,11 @@ export default function DashboardScreen() {
         Alert.alert('Send failed', "Couldn't send the start command to the device.");
         return;
       }
-      setCurrentWiperNo(leftWiperNo);
+      setCurrentLeftWiperNo(leftWiperNo);
+      setCurrentRightWiperNo(rightWiperNo);
       setShowCompletion(false);
-      setReport(null);
+      setLeftReport(null);
+      setRightReport(null);
       setWLWipes(0);
       setWLStrokes(0);
       setWRWipes(0);
@@ -178,6 +196,8 @@ export default function DashboardScreen() {
       router.push('/settings');
     }
   }, [status, savedDeviceId, connect, disconnect, router]);
+
+  const activeReport = completionTab === 'left' ? leftReport : rightReport;
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -249,19 +269,52 @@ export default function DashboardScreen() {
             <ThemedView type="backgroundElement" style={styles.completionCard}>
               <ThemedText type="subtitle">Session complete</ThemedText>
 
+              {/* Left / Right tabs */}
+              <View style={styles.tabRow}>
+                <Pressable
+                  onPress={() => setCompletionTab('left')}
+                  style={[styles.tab, completionTab === 'left' && styles.tabActive]}>
+                  <ThemedText
+                    type="smallBold"
+                    style={completionTab === 'left' ? styles.tabTextActive : styles.tabTextInactive}>
+                    Left
+                  </ThemedText>
+                </Pressable>
+                <Pressable
+                  onPress={() => setCompletionTab('right')}
+                  style={[styles.tab, completionTab === 'right' && styles.tabActive]}>
+                  <ThemedText
+                    type="smallBold"
+                    style={completionTab === 'right' ? styles.tabTextActive : styles.tabTextInactive}>
+                    Right
+                  </ThemedText>
+                </Pressable>
+              </View>
+
               {isLoadingReport ? (
                 <ThemedText type="small" themeColor="textSecondary" style={styles.centered}>
                   Loading report…
                 </ThemedText>
+              ) : activeReport ? (
+                <>
+                  <View style={styles.reportSummary}>
+                    <ThemedText type="small" themeColor="textSecondary">
+                      Wiper {activeReport.wiperNo} · {activeReport.wipes} wipes · {activeReport.strokes} strokes
+                    </ThemedText>
+                  </View>
+                  <SessionReportTable records={activeReport.records} />
+                </>
               ) : (
-                report && <SessionReportTable records={report.records} />
+                <ThemedText type="small" themeColor="textSecondary" style={styles.centered}>
+                  No report data.
+                </ThemedText>
               )}
 
               <Pressable
                 onPress={handleReset}
                 style={({ pressed }) => [styles.resetButton, pressed && styles.disabled]}>
                 <ThemedText type="smallBold" style={styles.resetButtonText}>
-                  Reset
+                  New Session
                 </ThemedText>
               </Pressable>
             </ThemedView>
@@ -324,6 +377,22 @@ const styles = StyleSheet.create({
   resetActionBtn: { backgroundColor: '#7A8898' },
   actionBtnText: { color: '#ffffff' },
   completionCard: { borderRadius: Spacing.four, padding: Spacing.four, gap: Spacing.three },
+  tabRow: {
+    flexDirection: 'row',
+    borderRadius: Spacing.two,
+    overflow: 'hidden',
+    backgroundColor: '#7A889820',
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: Spacing.two,
+    alignItems: 'center',
+    borderRadius: Spacing.two,
+  },
+  tabActive: { backgroundColor: Brand.primary },
+  tabTextActive: { color: '#ffffff' },
+  tabTextInactive: { color: '#7A8898' },
+  reportSummary: { paddingHorizontal: Spacing.one },
   centered: { textAlign: 'center' },
   resetButton: {
     backgroundColor: Brand.primary,
