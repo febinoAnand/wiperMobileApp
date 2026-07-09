@@ -1,25 +1,49 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet } from 'react-native';
+import { Alert, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { DeviceListItem } from '@/components/settings/device-list-item';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { BottomTabInset, Brand, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useBluetooth } from '@/contexts/bluetooth-context';
-import { getTimeIntervalSeconds, setTimeIntervalSeconds } from '@/services/storage';
+import {
+  getSelectedDevice,
+  getTimeIntervalSeconds,
+  setSelectedDevice,
+  setTimeIntervalSeconds,
+  type SelectedDevice,
+} from '@/services/storage';
+import type { BluetoothDeviceInfo } from '@/types/wiper';
 
-const INTERVAL_STEP_SECONDS = 10;
 const MIN_INTERVAL_SECONDS = 10;
-const MAX_INTERVAL_SECONDS = 600;
+const MAX_INTERVAL_SECONDS = 300; // 5 minutes
+const SEC_STEP = 10;
 
 export default function SettingsScreen() {
-  const { pairedDevices, connectedDevice, refreshPairedDevices, connect, disconnect } = useBluetooth();
-  const [connectingId, setConnectingId] = useState<string | null>(null);
+  const { pairedDevices, refreshPairedDevices } = useBluetooth();
+  const [isDeviceModalVisible, setIsDeviceModalVisible] = useState(false);
+  const [savedDevice, setSavedDevice] = useState<SelectedDevice | null>(null);
   const [intervalSeconds, setIntervalSeconds] = useState(60);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const handleRefresh = useCallback(async () => {
+  useEffect(() => {
+    getTimeIntervalSeconds().then(setIntervalSeconds);
+    getSelectedDevice().then(setSavedDevice);
+  }, []);
+
+  const handleOpenModal = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      await refreshPairedDevices();
+    } catch {
+      // Non-fatal — show whatever is already loaded
+    } finally {
+      setIsRefreshing(false);
+    }
+    setIsDeviceModalVisible(true);
+  }, [refreshPairedDevices]);
+
+  const handleRefreshInModal = useCallback(async () => {
     setIsRefreshing(true);
     try {
       await refreshPairedDevices();
@@ -30,8 +54,11 @@ export default function SettingsScreen() {
     }
   }, [refreshPairedDevices]);
 
-  useEffect(() => {
-    getTimeIntervalSeconds().then(setIntervalSeconds);
+  const handleSelectDevice = useCallback(async (device: BluetoothDeviceInfo) => {
+    const toSave: SelectedDevice = { id: device.id, name: device.name };
+    await setSelectedDevice(toSave);
+    setSavedDevice(toSave);
+    setIsDeviceModalVisible(false);
   }, []);
 
   const updateInterval = useCallback((next: number) => {
@@ -40,23 +67,20 @@ export default function SettingsScreen() {
     setTimeIntervalSeconds(clamped);
   }, []);
 
-  const handleDevicePress = useCallback(
-    async (deviceId: string) => {
-      if (connectedDevice?.id === deviceId) {
-        await disconnect();
-        return;
-      }
-      setConnectingId(deviceId);
-      try {
-        await connect(deviceId);
-      } catch {
-        Alert.alert('Connection failed', "Couldn't connect to the selected device. Make sure it's paired and in range.");
-      } finally {
-        setConnectingId(null);
-      }
-    },
-    [connectedDevice, connect, disconnect],
-  );
+  const minutes = Math.floor(intervalSeconds / 60);
+  const secs = intervalSeconds % 60;
+
+  const adjustMinutes = useCallback((delta: number) => {
+    const nextMin = Math.min(5, Math.max(0, minutes + delta));
+    const nextSec = nextMin === 5 ? 0 : secs;
+    updateInterval(nextMin * 60 + nextSec);
+  }, [minutes, secs, updateInterval]);
+
+  const adjustSeconds = useCallback((delta: number) => {
+    if (minutes === 5) return;
+    const nextSec = Math.min(50, Math.max(0, secs + delta * SEC_STEP));
+    updateInterval(minutes * 60 + nextSec);
+  }, [minutes, secs, updateInterval]);
 
   return (
     <ThemedView style={styles.container}>
@@ -64,57 +88,140 @@ export default function SettingsScreen() {
         <ScrollView contentContainerStyle={styles.content}>
           <ThemedText type="subtitle">Settings</ThemedText>
 
+          {/* Bluetooth device selection */}
           <ThemedView style={styles.section}>
-            <ThemedView style={styles.sectionHeader}>
-              <ThemedText type="smallBold">Paired devices</ThemedText>
-              <Pressable onPress={handleRefresh} disabled={isRefreshing}>
-                <ThemedText type="link" themeColor="textSecondary">
-                  {isRefreshing ? 'Refreshing…' : 'Refresh'}
-                </ThemedText>
-              </Pressable>
-            </ThemedView>
-
-            {pairedDevices.length === 0 ? (
-              <ThemedText type="small" themeColor="textSecondary">
-                No paired devices found. Pair your wiper module in Android Bluetooth settings, then refresh.
-              </ThemedText>
-            ) : (
-              pairedDevices.map((device) => (
-                <DeviceListItem
-                  key={device.id}
-                  device={device}
-                  isConnected={connectedDevice?.id === device.id}
-                  isBusy={connectingId === device.id}
-                  onPress={() => handleDevicePress(device.id)}
-                />
-              ))
-            )}
+            <ThemedText type="smallBold">Bluetooth device</ThemedText>
+            <Pressable
+              onPress={handleOpenModal}
+              style={({ pressed }) => pressed && styles.pressed}>
+              <ThemedView type="backgroundElement" style={styles.deviceRow}>
+                <View style={styles.deviceInfo}>
+                  <ThemedText type="small" themeColor="textSecondary">Selected device</ThemedText>
+                  <ThemedText type="smallBold">
+                    {savedDevice?.name ?? 'Not selected'}
+                  </ThemedText>
+                  {savedDevice && (
+                    <ThemedText type="small" themeColor="textSecondary">{savedDevice.id}</ThemedText>
+                  )}
+                </View>
+                <ThemedText type="title" themeColor="textSecondary" style={styles.chevron}>›</ThemedText>
+              </ThemedView>
+            </Pressable>
           </ThemedView>
 
+          {/* Time interval */}
           <ThemedView style={styles.section}>
             <ThemedText type="smallBold">Time interval</ThemedText>
-            <ThemedView type="backgroundElement" style={styles.intervalRow}>
-              <Pressable
-                onPress={() => updateInterval(intervalSeconds - INTERVAL_STEP_SECONDS)}
-                style={styles.stepButton}>
-                <ThemedText type="title" style={styles.stepButtonText}>
-                  −
-                </ThemedText>
-              </Pressable>
-              <ThemedText type="title" style={styles.intervalValue}>
-                {intervalSeconds}s
-              </ThemedText>
-              <Pressable
-                onPress={() => updateInterval(intervalSeconds + INTERVAL_STEP_SECONDS)}
-                style={styles.stepButton}>
-                <ThemedText type="title" style={styles.stepButtonText}>
-                  +
-                </ThemedText>
-              </Pressable>
+            <ThemedView type="backgroundElement" style={styles.intervalCard}>
+              {/* Minutes group */}
+              <View style={styles.intervalGroup}>
+                <View style={styles.stepRow}>
+                  <Pressable
+                    onPress={() => adjustMinutes(-1)}
+                    disabled={minutes === 0}
+                    style={styles.stepButton}>
+                    <ThemedText type="title" style={[styles.stepButtonText, minutes === 0 && styles.stepDisabled]}>−</ThemedText>
+                  </Pressable>
+                  <ThemedText type="title" style={styles.unitValue}>
+                    {String(minutes).padStart(2, '0')}
+                  </ThemedText>
+                  <Pressable
+                    onPress={() => adjustMinutes(1)}
+                    disabled={minutes === 5}
+                    style={styles.stepButton}>
+                    <ThemedText type="title" style={[styles.stepButtonText, minutes === 5 && styles.stepDisabled]}>+</ThemedText>
+                  </Pressable>
+                </View>
+                <ThemedText type="small" themeColor="textSecondary">min</ThemedText>
+              </View>
+
+              <View style={styles.colonGroup}>
+                <ThemedText type="title" style={styles.colonSep}>:</ThemedText>
+                <ThemedText type="small" style={styles.colonSpacer}> </ThemedText>
+              </View>
+
+              {/* Seconds group */}
+              <View style={styles.intervalGroup}>
+                <View style={styles.stepRow}>
+                  <Pressable
+                    onPress={() => adjustSeconds(-1)}
+                    disabled={secs === 0 || minutes === 5}
+                    style={styles.stepButton}>
+                    <ThemedText type="title" style={[styles.stepButtonText, (secs === 0 || minutes === 5) && styles.stepDisabled]}>−</ThemedText>
+                  </Pressable>
+                  <ThemedText type="title" style={styles.unitValue}>
+                    {String(secs).padStart(2, '0')}
+                  </ThemedText>
+                  <Pressable
+                    onPress={() => adjustSeconds(1)}
+                    disabled={secs >= 50 || minutes === 5}
+                    style={styles.stepButton}>
+                    <ThemedText type="title" style={[styles.stepButtonText, (secs >= 50 || minutes === 5) && styles.stepDisabled]}>+</ThemedText>
+                  </Pressable>
+                </View>
+                <ThemedText type="small" themeColor="textSecondary">sec</ThemedText>
+              </View>
             </ThemedView>
+            <ThemedText type="small" themeColor="textSecondary">Max 5:00 · seconds step 10</ThemedText>
           </ThemedView>
         </ScrollView>
       </SafeAreaView>
+
+      {/* Device selection modal */}
+      <Modal
+        visible={isDeviceModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsDeviceModalVisible(false)}>
+        <View style={styles.overlay}>
+          <ThemedView type="backgroundElement" style={styles.modalCard}>
+            {/* Modal header */}
+            <View style={styles.modalHeader}>
+              <ThemedText type="smallBold">Select device</ThemedText>
+              <View style={styles.modalHeaderActions}>
+                <Pressable onPress={handleRefreshInModal} disabled={isRefreshing}>
+                  <ThemedText type="link" themeColor="textSecondary">
+                    {isRefreshing ? 'Refreshing…' : 'Refresh'}
+                  </ThemedText>
+                </Pressable>
+                <Pressable onPress={() => setIsDeviceModalVisible(false)}>
+                  <ThemedText type="link" themeColor="textSecondary">Cancel</ThemedText>
+                </Pressable>
+              </View>
+            </View>
+
+            {/* Device list */}
+            {pairedDevices.length === 0 ? (
+              <ThemedText type="small" themeColor="textSecondary" style={styles.emptyText}>
+                No paired devices found. Pair your wiper module in Android Bluetooth settings, then refresh.
+              </ThemedText>
+            ) : (
+              <ScrollView
+                style={styles.deviceList}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}>
+                {pairedDevices.map((device) => {
+                  const isSelected = savedDevice?.id === device.id;
+                  return (
+                    <Pressable
+                      key={device.id}
+                      onPress={() => handleSelectDevice(device)}
+                      style={({ pressed }) => [styles.deviceItem, pressed && styles.pressed]}>
+                      <View style={styles.deviceItemInfo}>
+                        <ThemedText type="smallBold">{device.name}</ThemedText>
+                        <ThemedText type="small" themeColor="textSecondary">{device.id}</ThemedText>
+                      </View>
+                      {isSelected && (
+                        <ThemedText type="smallBold" style={styles.checkmark}>✓</ThemedText>
+                      )}
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            )}
+          </ThemedView>
+        </View>
+      </Modal>
     </ThemedView>
   );
 }
@@ -131,16 +238,67 @@ const styles = StyleSheet.create({
     maxWidth: MaxContentWidth,
   },
   section: { gap: Spacing.three },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  intervalRow: {
+  pressed: { opacity: 0.7 },
+  deviceRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     borderRadius: Spacing.three,
     paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.two,
+    paddingVertical: Spacing.three,
   },
-  stepButton: { paddingHorizontal: Spacing.four, paddingVertical: Spacing.two },
-  stepButtonText: { fontSize: 28 },
-  intervalValue: { fontSize: 28, lineHeight: 32 },
+  deviceInfo: { gap: Spacing.half, flex: 1 },
+  chevron: { fontSize: 22, lineHeight: 26 },
+  intervalCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Spacing.three,
+    paddingHorizontal: Spacing.four,
+    paddingVertical: Spacing.three,
+  },
+  intervalGroup: { alignItems: 'center', gap: Spacing.one },
+  colonGroup: { alignItems: 'center', gap: Spacing.one, marginHorizontal: Spacing.one },
+  stepRow: { flexDirection: 'row', alignItems: 'center' },
+  stepButton: { paddingHorizontal: Spacing.three, paddingVertical: Spacing.two },
+  stepButtonText: { fontSize: 28, lineHeight: 32 },
+  stepDisabled: { opacity: 0.25 },
+  unitValue: { fontSize: 28, lineHeight: 32, minWidth: 48, textAlign: 'center' },
+  colonSep: { fontSize: 32, lineHeight: 32 },
+  colonSpacer: { opacity: 0, lineHeight: 20 },
+  // Modal
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Spacing.four,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 400,
+    maxHeight: '80%',
+    borderRadius: Spacing.four,
+    padding: Spacing.four,
+    gap: Spacing.two,
+  },
+  deviceList: { flexShrink: 1 },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.two,
+  },
+  modalHeaderActions: { flexDirection: 'row', gap: Spacing.three },
+  emptyText: { textAlign: 'center', paddingVertical: Spacing.three },
+  deviceItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: Spacing.three,
+    paddingHorizontal: Spacing.two,
+    borderRadius: Spacing.two,
+  },
+  deviceItemInfo: { gap: Spacing.half, flex: 1 },
+  checkmark: { color: Brand.primary, fontSize: 18 },
 });

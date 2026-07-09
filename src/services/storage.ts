@@ -6,8 +6,11 @@ const KEYS = {
   calibration: 'wipeangle.calibration',
   timeIntervalSeconds: 'wipeangle.timeIntervalSeconds',
   lastDeviceId: 'wipeangle.lastDeviceId',
+  selectedDevice: 'wipeangle.selectedDevice',
   sessionReports: 'wipeangle.sessionReports',
 } as const;
+
+export type SelectedDevice = { id: string; name: string };
 
 const MAX_REPORT_ENTRIES = 50;
 
@@ -45,6 +48,15 @@ export async function getLastDeviceId(): Promise<string | null> {
 
 export async function setLastDeviceId(deviceId: string): Promise<void> {
   await AsyncStorage.setItem(KEYS.lastDeviceId, deviceId);
+}
+
+export async function getSelectedDevice(): Promise<SelectedDevice | null> {
+  const raw = await AsyncStorage.getItem(KEYS.selectedDevice);
+  return raw ? (JSON.parse(raw) as SelectedDevice) : null;
+}
+
+export async function setSelectedDevice(device: SelectedDevice): Promise<void> {
+  await AsyncStorage.setItem(KEYS.selectedDevice, JSON.stringify(device));
 }
 
 export async function getSessionReports(): Promise<SessionReportEntry[]> {

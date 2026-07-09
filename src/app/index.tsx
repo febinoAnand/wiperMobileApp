@@ -12,7 +12,7 @@ import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, Brand, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useBluetooth } from '@/contexts/bluetooth-context';
 import { useCountdown } from '@/hooks/use-countdown';
-import { addSessionReport, getCalibration, getTimeIntervalSeconds } from '@/services/storage';
+import { addSessionReport, getCalibration, getSelectedDevice, getTimeIntervalSeconds } from '@/services/storage';
 import type { CalibrationData, DualWiperReading, SessionReport, WiperReading } from '@/types/wiper';
 
 function fmtSeconds(totalSeconds: number) {
@@ -23,16 +23,22 @@ function fmtSeconds(totalSeconds: number) {
 
 export default function DashboardScreen() {
   const router = useRouter();
-  const { status, connectedDevice, latestDualReading, latestReading, write, fetchSessionReport } = useBluetooth();
+  const { status, connectedDevice, latestDualReading, latestReading, write, connect, disconnect, fetchSessionReport } = useBluetooth();
 
   // ── Shared settings ────────────────────────────────────────────────────────
   const [calibration, setCalibration] = useState<CalibrationData | null>(null);
   const [intervalSeconds, setIntervalSeconds] = useState(60);
+  const [savedDeviceName, setSavedDeviceName] = useState<string | undefined>(undefined);
+  const [savedDeviceId, setSavedDeviceId] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
       getCalibration().then(setCalibration);
       getTimeIntervalSeconds().then(setIntervalSeconds);
+      getSelectedDevice().then((d) => {
+        setSavedDeviceName(d?.name);
+        setSavedDeviceId(d?.id ?? null);
+      });
     }, []),
   );
 
@@ -153,6 +159,24 @@ export default function DashboardScreen() {
     handleSessionComplete();
   }, [write, countdown, handleSessionComplete]);
 
+  const handleBadgePress = useCallback(async () => {
+    if (status === 'connected') {
+      try {
+        await disconnect();
+      } catch {
+        Alert.alert('Disconnect failed', "Couldn't disconnect from the device.");
+      }
+    } else if (status === 'disconnected' && savedDeviceId) {
+      try {
+        await connect(savedDeviceId);
+      } catch {
+        Alert.alert('Connection failed', "Couldn't connect. Make sure the device is in range and Bluetooth is on.");
+      }
+    } else {
+      router.push('/settings');
+    }
+  }, [status, savedDeviceId, connect, disconnect, router]);
+
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <ThemedView style={styles.container}>
@@ -163,8 +187,8 @@ export default function DashboardScreen() {
             <ThemedText type="subtitle">Dashboard</ThemedText>
             <ConnectionBadge
               status={status}
-              deviceName={connectedDevice?.name}
-              onPress={() => router.push('/settings')}
+              deviceName={connectedDevice?.name ?? savedDeviceName}
+              onPress={handleBadgePress}
             />
           </ThemedView>
 
