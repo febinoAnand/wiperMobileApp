@@ -10,16 +10,17 @@ export type WiperCardProps = {
   angle: number;
   wipesCount: number;
   strokeCount: number;
+  centerAngle?: number;
 };
 
-export function WiperCard({ label, angle, wipesCount, strokeCount }: WiperCardProps) {
+export function WiperCard({ label, angle, wipesCount, strokeCount, centerAngle }: WiperCardProps) {
   return (
     <ThemedView type="backgroundElement" style={styles.card}>
       <ThemedText type="smallBold" style={styles.label}>
         {label}
       </ThemedText>
 
-      <SpeedoGauge angle={angle} />
+      <SpeedoGauge angle={angle} centerAngle={centerAngle} />
 
       <View style={styles.stats}>
         <StatRow name="Wipes" value={String(wipesCount)} accent />

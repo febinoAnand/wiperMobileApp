@@ -210,8 +210,8 @@ export default function DashboardScreen() {
 
           {/* Both wiper cards side by side */}
           <ThemedView style={styles.cardsRow}>
-            <WiperCard label="Wiper Left" angle={wLAngle} wipesCount={wLWipes} strokeCount={wLStrokes} />
-            <WiperCard label="Wiper Right" angle={wRAngle} wipesCount={wRWipes} strokeCount={wRStrokes} />
+            <WiperCard label="Wiper Left" angle={wLAngle} wipesCount={wLWipes} strokeCount={wLStrokes} centerAngle={calibration?.left.center} />
+            <WiperCard label="Wiper Right" angle={wRAngle} wipesCount={wRWipes} strokeCount={wRStrokes} centerAngle={calibration?.right.center} />
           </ThemedView>
 
           {/* Pressure */}
