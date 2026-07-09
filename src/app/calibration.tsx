@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { CalibrationStep } from '@/components/calibration/calibration-step';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { BottomTabInset, Brand, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useBluetooth } from '@/contexts/bluetooth-context';
 import { clearCalibration, setCalibration } from '@/services/storage';
 
@@ -147,7 +147,7 @@ const styles = StyleSheet.create({
   centerCard: { borderRadius: Spacing.three, padding: Spacing.four, alignItems: 'center', gap: Spacing.one },
   centerValue: { fontSize: 36, lineHeight: 40 },
   saveButton: {
-    backgroundColor: '#3c87f7',
+    backgroundColor: Brand.primary,
     borderRadius: Spacing.five,
     paddingVertical: Spacing.three,
     alignItems: 'center',

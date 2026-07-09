@@ -2,7 +2,7 @@ import { Pressable, StyleSheet } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { Brand, Spacing } from '@/constants/theme';
 
 export type TimerControlProps = {
   intervalSeconds: number;
@@ -54,7 +54,7 @@ export function TimerControl({
           onPress={isRunning ? onStop : onStart}
           style={({ pressed }) => [
             styles.button,
-            { backgroundColor: isRunning ? '#e0524d' : '#3c87f7' },
+            { backgroundColor: isRunning ? Brand.danger : Brand.primary },
             (pressed || disabled) && styles.disabled,
           ]}>
           <ThemedText type="smallBold" style={styles.buttonText}>
@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.three,
     borderRadius: Spacing.five,
   },
-  resetButton: { backgroundColor: '#6b7280' },
+  resetButton: { backgroundColor: '#7A8898' },
   disabled: { opacity: 0.5 },
   buttonText: { color: '#ffffff' },
   resetButtonText: { color: '#ffffff' },

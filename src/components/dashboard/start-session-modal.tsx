@@ -3,7 +3,7 @@ import { Modal, Pressable, StyleSheet, TextInput } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { Brand, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 export type StartSessionModalProps = {
@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
     borderRadius: Spacing.five,
   },
   pressed: { opacity: 0.7 },
-  okButton: { backgroundColor: '#3c87f7' },
+  okButton: { backgroundColor: Brand.primary },
   okButtonText: { color: '#ffffff' },
   disabled: { opacity: 0.5 },
 });

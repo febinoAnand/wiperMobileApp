@@ -2,7 +2,7 @@ import { StyleSheet, View } from 'react-native';
 import Svg, { Circle, Line, Path } from 'react-native-svg';
 
 import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
+import { Brand, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 const SIZE = 220;
@@ -37,8 +37,8 @@ export function AngleGauge({ angle }: AngleGaugeProps) {
           strokeWidth={3}
           fill="none"
         />
-        <Line x1={CENTER_X} y1={CENTER_Y} x2={needle.x} y2={needle.y} stroke={theme.text} strokeWidth={4} />
-        <Circle cx={CENTER_X} cy={CENTER_Y} r={5} fill={theme.text} />
+        <Line x1={CENTER_X} y1={CENTER_Y} x2={needle.x} y2={needle.y} stroke={Brand.primary} strokeWidth={4} />
+        <Circle cx={CENTER_X} cy={CENTER_Y} r={5} fill={Brand.primary} />
       </Svg>
       <View style={styles.scale}>
         <ThemedText type="small" themeColor="textSecondary">

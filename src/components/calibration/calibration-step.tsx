@@ -2,7 +2,7 @@ import { Pressable, StyleSheet } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { Brand, Spacing } from '@/constants/theme';
 
 export type CalibrationStepProps = {
   title: string;
@@ -47,7 +47,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.four,
     paddingVertical: Spacing.two,
     borderRadius: Spacing.five,
-    backgroundColor: '#3c87f7',
+    backgroundColor: Brand.primary,
   },
   pressed: { opacity: 0.7 },
   buttonText: { color: '#ffffff' },

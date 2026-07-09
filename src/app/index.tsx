@@ -11,7 +11,7 @@ import { StatCard } from '@/components/dashboard/stat-card';
 import { TimerControl } from '@/components/dashboard/timer-control';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { BottomTabInset, Brand, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useBluetooth } from '@/contexts/bluetooth-context';
 import { useCountdown } from '@/hooks/use-countdown';
 import { addSessionReport, getCalibration, getTimeIntervalSeconds } from '@/services/storage';
@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
   lastReceived: { textAlign: 'center' },
   summary: { borderRadius: Spacing.four, padding: Spacing.four, gap: Spacing.three },
   resetButton: {
-    backgroundColor: '#3c87f7',
+    backgroundColor: Brand.primary,
     borderRadius: Spacing.five,
     paddingVertical: Spacing.three,
     alignItems: 'center',
