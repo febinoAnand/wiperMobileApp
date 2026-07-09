@@ -115,12 +115,14 @@ export default function DashboardScreen() {
   }, []);
 
   const handleConfirmStart = useCallback(
-    async (wiperNo: string) => {
+    async (leftWiperNo: string, rightWiperNo: string) => {
       setIsStartModalVisible(false);
+      const toNum = (v: string) => (/^\d+$/.test(v) ? Number(v) : v);
       const command = {
         cmd: 'start',
         duration: intervalSeconds,
-        wiper_no: /^\d+$/.test(wiperNo) ? Number(wiperNo) : wiperNo,
+        wiper_no_left: toNum(leftWiperNo),
+        wiper_no_right: toNum(rightWiperNo),
         timestamp: Math.floor(Date.now() / 1000),
       };
       try {
@@ -129,7 +131,7 @@ export default function DashboardScreen() {
         Alert.alert('Send failed', "Couldn't send the start command to the device.");
         return;
       }
-      setCurrentWiperNo(wiperNo);
+      setCurrentWiperNo(leftWiperNo);
       setShowCompletion(false);
       setReport(null);
       setWLWipes(0);
@@ -270,7 +272,7 @@ export default function DashboardScreen() {
       <StartSessionModal
         visible={isStartModalVisible}
         onCancel={() => setIsStartModalVisible(false)}
-        onConfirm={handleConfirmStart}
+        onConfirm={(l, r) => handleConfirmStart(l, r)}
       />
     </ThemedView>
   );

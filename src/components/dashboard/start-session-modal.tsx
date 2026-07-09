@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Modal, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -9,54 +9,81 @@ import { useTheme } from '@/hooks/use-theme';
 export type StartSessionModalProps = {
   visible: boolean;
   onCancel: () => void;
-  onConfirm: (wiperNo: string) => void;
+  onConfirm: (leftWiperNo: string, rightWiperNo: string) => void;
 };
 
 export function StartSessionModal({ visible, onCancel, onConfirm }: StartSessionModalProps) {
   const theme = useTheme();
-  const [wiperNo, setWiperNo] = useState('');
+  const [leftWiperNo, setLeftWiperNo] = useState('');
+  const [rightWiperNo, setRightWiperNo] = useState('');
+  const rightRef = useRef<TextInput>(null);
+
+  const canConfirm = leftWiperNo.trim().length > 0 && rightWiperNo.trim().length > 0;
 
   const handleCancel = () => {
-    setWiperNo('');
+    setLeftWiperNo('');
+    setRightWiperNo('');
     onCancel();
   };
 
   const handleConfirm = () => {
-    const trimmed = wiperNo.trim();
-    if (!trimmed) {
-      return;
-    }
-    setWiperNo('');
-    onConfirm(trimmed);
+    if (!canConfirm) return;
+    const left = leftWiperNo.trim();
+    const right = rightWiperNo.trim();
+    setLeftWiperNo('');
+    setRightWiperNo('');
+    onConfirm(left, right);
   };
+
+  const inputStyle = [styles.input, { color: theme.text, borderColor: theme.backgroundSelected }];
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={handleCancel}>
       <ThemedView style={styles.overlay}>
         <ThemedView type="backgroundElement" style={styles.card}>
-          <ThemedText type="smallBold">Wiper number</ThemedText>
-          <TextInput
-            style={[styles.input, { color: theme.text, borderColor: theme.backgroundSelected }]}
-            value={wiperNo}
-            onChangeText={setWiperNo}
-            autoCapitalize="characters"
-            placeholder="e.g. 1 or A1"
-            placeholderTextColor={theme.textSecondary}
-            autoFocus
-          />
+          <ThemedText type="smallBold">Wiper numbers</ThemedText>
+
+          <View style={styles.inputRow}>
+            <View style={styles.inputGroup}>
+              <ThemedText type="small" themeColor="textSecondary">Left wiper</ThemedText>
+              <TextInput
+                style={inputStyle}
+                value={leftWiperNo}
+                onChangeText={setLeftWiperNo}
+                autoCapitalize="characters"
+                placeholder="e.g. 1"
+                placeholderTextColor={theme.textSecondary}
+                returnKeyType="next"
+                onSubmitEditing={() => rightRef.current?.focus()}
+                autoFocus
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <ThemedText type="small" themeColor="textSecondary">Right wiper</ThemedText>
+              <TextInput
+                ref={rightRef}
+                style={inputStyle}
+                value={rightWiperNo}
+                onChangeText={setRightWiperNo}
+                autoCapitalize="characters"
+                placeholder="e.g. 2"
+                placeholderTextColor={theme.textSecondary}
+                returnKeyType="done"
+                onSubmitEditing={handleConfirm}
+              />
+            </View>
+          </View>
+
           <View style={styles.actions}>
             <Pressable onPress={handleCancel} style={({ pressed }) => [styles.button, pressed && styles.pressed]}>
-              <ThemedText type="smallBold" themeColor="textSecondary">
-                Cancel
-              </ThemedText>
+              <ThemedText type="smallBold" themeColor="textSecondary">Cancel</ThemedText>
             </Pressable>
             <Pressable
               onPress={handleConfirm}
-              disabled={!wiperNo}
-              style={({ pressed }) => [styles.button, styles.okButton, (pressed || !wiperNo) && styles.disabled]}>
-              <ThemedText type="smallBold" style={styles.okButtonText}>
-                OK
-              </ThemedText>
+              disabled={!canConfirm}
+              style={({ pressed }) => [styles.button, styles.okButton, (pressed || !canConfirm) && styles.disabled]}>
+              <ThemedText type="smallBold" style={styles.okButtonText}>Start</ThemedText>
             </Pressable>
           </View>
         </ThemedView>
@@ -75,10 +102,18 @@ const styles = StyleSheet.create({
   },
   card: {
     width: '100%',
-    maxWidth: 320,
+    maxWidth: 360,
     borderRadius: Spacing.four,
     padding: Spacing.four,
     gap: Spacing.three,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    gap: Spacing.three,
+  },
+  inputGroup: {
+    flex: 1,
+    gap: Spacing.one,
   },
   input: {
     borderWidth: 1,

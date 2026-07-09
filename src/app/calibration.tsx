@@ -3,7 +3,6 @@ import { useCallback, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { CalibrationStep } from '@/components/calibration/calibration-step';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, Brand, MaxContentWidth, Spacing } from '@/constants/theme';
@@ -12,6 +11,19 @@ import { clearCalibration, setCalibration } from '@/services/storage';
 
 type Sensor = 'left' | 'right';
 type CapturingStep = `${Sensor}_${'initial' | 'end'}` | null;
+
+function AngleValue({ captured, live }: { captured: number | null; live: number }) {
+  return (
+    <View style={styles.angleBlock}>
+      <ThemedText type="title" style={styles.angleLive}>
+        {(captured ?? live).toFixed(1)}°
+      </ThemedText>
+      <ThemedText type="small" themeColor="textSecondary">
+        {captured !== null ? 'Captured' : 'Live'}
+      </ThemedText>
+    </View>
+  );
+}
 
 export default function CalibrationScreen() {
   const router = useRouter();
@@ -37,9 +49,7 @@ export default function CalibrationScreen() {
       setCapturingStep(key);
       try {
         const ack = await sendCommand({ cmd: step === 'initial' ? 'set_initial' : 'set_end', sensor });
-        if (ack.status !== 'ok') {
-          throw new Error(`Device reported status "${ack.status}"`);
-        }
+        if (ack.status !== 'ok') throw new Error(`Device reported status "${ack.status}"`);
         const angle = ack.angle ?? (sensor === 'left' ? liveAngleL : liveAngleR);
         if (sensor === 'left') {
           if (step === 'initial') setLeftInitial(angle);
@@ -82,6 +92,8 @@ export default function CalibrationScreen() {
     await clearCalibration();
   }, [write]);
 
+  const isBusy = capturingStep !== null;
+
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -105,55 +117,53 @@ export default function CalibrationScreen() {
             Move each wiper to its extreme positions and capture both to compute the center.
           </ThemedText>
 
-          {/* Wiper Left */}
-          <View style={styles.section}>
-            <ThemedText type="smallBold" style={styles.sectionLabel}>Wiper Left</ThemedText>
-            <CalibrationStep
-              title="Initial position"
-              liveAngle={liveAngleL}
-              capturedAngle={leftInitial}
-              isCapturing={capturingStep === 'left_initial'}
-              onCapture={() => capture('left', 'initial')}
-            />
-            <CalibrationStep
-              title="End position"
-              liveAngle={liveAngleL}
-              capturedAngle={leftEnd}
-              isCapturing={capturingStep === 'left_end'}
-              onCapture={() => capture('left', 'end')}
-            />
-            <ThemedView type="backgroundElement" style={styles.centerCard}>
-              <ThemedText type="small" themeColor="textSecondary">Computed center</ThemedText>
-              <ThemedText type="title" style={styles.centerValue}>
-                {leftCenter !== null ? `${leftCenter.toFixed(1)}°` : '—'}
-              </ThemedText>
-            </ThemedView>
-          </View>
+          {/* Initial Position */}
+          <StepCard
+            title="Initial Position"
+            leftCaptured={leftInitial}
+            rightCaptured={rightInitial}
+            liveAngleL={liveAngleL}
+            liveAngleR={liveAngleR}
+            capturingLeft={capturingStep === 'left_initial'}
+            capturingRight={capturingStep === 'right_initial'}
+            isBusy={isBusy}
+            onCaptureLeft={() => capture('left', 'initial')}
+            onCaptureRight={() => capture('right', 'initial')}
+          />
 
-          {/* Wiper Right */}
-          <View style={styles.section}>
-            <ThemedText type="smallBold" style={styles.sectionLabel}>Wiper Right</ThemedText>
-            <CalibrationStep
-              title="Initial position"
-              liveAngle={liveAngleR}
-              capturedAngle={rightInitial}
-              isCapturing={capturingStep === 'right_initial'}
-              onCapture={() => capture('right', 'initial')}
-            />
-            <CalibrationStep
-              title="End position"
-              liveAngle={liveAngleR}
-              capturedAngle={rightEnd}
-              isCapturing={capturingStep === 'right_end'}
-              onCapture={() => capture('right', 'end')}
-            />
-            <ThemedView type="backgroundElement" style={styles.centerCard}>
-              <ThemedText type="small" themeColor="textSecondary">Computed center</ThemedText>
-              <ThemedText type="title" style={styles.centerValue}>
-                {rightCenter !== null ? `${rightCenter.toFixed(1)}°` : '—'}
-              </ThemedText>
-            </ThemedView>
-          </View>
+          {/* End Position */}
+          <StepCard
+            title="End Position"
+            leftCaptured={leftEnd}
+            rightCaptured={rightEnd}
+            liveAngleL={liveAngleL}
+            liveAngleR={liveAngleR}
+            capturingLeft={capturingStep === 'left_end'}
+            capturingRight={capturingStep === 'right_end'}
+            isBusy={isBusy}
+            onCaptureLeft={() => capture('left', 'end')}
+            onCaptureRight={() => capture('right', 'end')}
+          />
+
+          {/* Computed Center */}
+          <ThemedView type="backgroundElement" style={styles.centerCard}>
+            <ThemedText type="smallBold" style={styles.cardTitle}>Computed Center</ThemedText>
+            <View style={styles.row}>
+              <View style={styles.sensorCol}>
+                <ThemedText type="small" themeColor="textSecondary">Left Wiper</ThemedText>
+                <ThemedText type="title" style={styles.angleLive}>
+                  {leftCenter !== null ? `${leftCenter.toFixed(1)}°` : '—'}
+                </ThemedText>
+              </View>
+              <View style={styles.divider} />
+              <View style={styles.sensorCol}>
+                <ThemedText type="small" themeColor="textSecondary">Right Wiper</ThemedText>
+                <ThemedText type="title" style={styles.angleLive}>
+                  {rightCenter !== null ? `${rightCenter.toFixed(1)}°` : '—'}
+                </ThemedText>
+              </View>
+            </View>
+          </ThemedView>
 
           <Pressable
             onPress={handleSave}
@@ -165,6 +175,69 @@ export default function CalibrationScreen() {
           </Pressable>
         </ScrollView>
       </SafeAreaView>
+    </ThemedView>
+  );
+}
+
+type StepCardProps = {
+  title: string;
+  leftCaptured: number | null;
+  rightCaptured: number | null;
+  liveAngleL: number;
+  liveAngleR: number;
+  capturingLeft: boolean;
+  capturingRight: boolean;
+  isBusy: boolean;
+  onCaptureLeft: () => void;
+  onCaptureRight: () => void;
+};
+
+function StepCard({
+  title,
+  leftCaptured,
+  rightCaptured,
+  liveAngleL,
+  liveAngleR,
+  capturingLeft,
+  capturingRight,
+  isBusy,
+  onCaptureLeft,
+  onCaptureRight,
+}: StepCardProps) {
+  return (
+    <ThemedView type="backgroundElement" style={styles.stepCard}>
+      <ThemedText type="smallBold" style={styles.cardTitle}>{title}</ThemedText>
+      <View style={styles.row}>
+        {/* Left wiper */}
+        <View style={styles.sensorCol}>
+          <ThemedText type="small" themeColor="textSecondary">Left Wiper</ThemedText>
+          <AngleValue captured={leftCaptured} live={liveAngleL} />
+          <Pressable
+            onPress={onCaptureLeft}
+            disabled={isBusy}
+            style={({ pressed }) => [styles.captureBtn, (pressed || isBusy) && styles.disabled]}>
+            <ThemedText type="smallBold" style={styles.captureBtnText}>
+              {capturingLeft ? 'Wait…' : leftCaptured !== null ? 'Recapture' : 'Capture'}
+            </ThemedText>
+          </Pressable>
+        </View>
+
+        <View style={styles.divider} />
+
+        {/* Right wiper */}
+        <View style={styles.sensorCol}>
+          <ThemedText type="small" themeColor="textSecondary">Right Wiper</ThemedText>
+          <AngleValue captured={rightCaptured} live={liveAngleR} />
+          <Pressable
+            onPress={onCaptureRight}
+            disabled={isBusy}
+            style={({ pressed }) => [styles.captureBtn, (pressed || isBusy) && styles.disabled]}>
+            <ThemedText type="smallBold" style={styles.captureBtnText}>
+              {capturingRight ? 'Wait…' : rightCaptured !== null ? 'Recapture' : 'Capture'}
+            </ThemedText>
+          </Pressable>
+        </View>
+      </View>
     </ThemedView>
   );
 }
@@ -182,17 +255,43 @@ const styles = StyleSheet.create({
   },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   notice: { borderRadius: Spacing.three, padding: Spacing.three },
-  section: { gap: Spacing.two },
-  sectionLabel: { paddingHorizontal: Spacing.one },
+  stepCard: {
+    borderRadius: Spacing.three,
+    padding: Spacing.four,
+    gap: Spacing.three,
+  },
   centerCard: {
     borderRadius: Spacing.three,
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.two,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    padding: Spacing.four,
+    gap: Spacing.three,
   },
-  centerValue: { fontSize: 28, lineHeight: 32 },
+  cardTitle: { textAlign: 'center' },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.three,
+  },
+  sensorCol: {
+    flex: 1,
+    alignItems: 'center',
+    gap: Spacing.two,
+  },
+  divider: {
+    width: 1,
+    alignSelf: 'stretch',
+    backgroundColor: '#7A889820',
+    marginVertical: Spacing.one,
+  },
+  angleBlock: { alignItems: 'center', gap: Spacing.half },
+  angleLive: { fontSize: 28, lineHeight: 32 },
+  captureBtn: {
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    borderRadius: Spacing.five,
+    backgroundColor: Brand.primary,
+  },
+  captureBtnText: { color: '#ffffff' },
+  disabled: { opacity: 0.5 },
   saveButton: {
     backgroundColor: Brand.primary,
     borderRadius: Spacing.five,
@@ -200,6 +299,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: Spacing.two,
   },
-  disabled: { opacity: 0.5 },
   saveButtonText: { color: '#ffffff' },
 });
