@@ -1,4 +1,4 @@
-import type { AckMessage, BluetoothDeviceInfo, ConnectionStatus, SessionReport, WiperReading, WipeRecord } from '@/types/wiper';
+import type { AckMessage, BluetoothDeviceInfo, ConnectionStatus, DualWiperReading, SessionReport, WiperReading, WipeRecord } from '@/types/wiper';
 
 import type { BluetoothService, Unsubscribe } from './bluetooth-service';
 
@@ -15,6 +15,7 @@ const EMIT_INTERVAL_MS = 100;
 
 /** Simulates a connected wiper module so the UI is testable without hardware. */
 export function createMockBluetoothService(): BluetoothService {
+  let dualReadingListeners: ((reading: DualWiperReading) => void)[] = [];
   let readingListeners: ((reading: WiperReading) => void)[] = [];
   let connectionListeners: ((status: ConnectionStatus, device?: BluetoothDeviceInfo) => void)[] = [];
   let intervalHandle: ReturnType<typeof setInterval> | null = null;
@@ -24,6 +25,10 @@ export function createMockBluetoothService(): BluetoothService {
   let lastDirection: 'fwd' | 'bwd' | null = null;
   let currentAngle = MOCK_RAW_CENTER_DEG;
   let lastDuration = 60;
+
+  function emitDualReading(reading: DualWiperReading) {
+    dualReadingListeners.forEach((listener) => listener(reading));
+  }
 
   function emitReading(reading: WiperReading) {
     readingListeners.forEach((listener) => listener(reading));
@@ -44,7 +49,7 @@ export function createMockBluetoothService(): BluetoothService {
       currentAngle = angle;
 
       if (!isWiping) {
-        emitReading({ angle, pressure, timestamp: Date.now() });
+        emitDualReading({ angleL: angle, angleR: angle - 3.1, pressure, timestamp: Date.now() });
         return;
       }
 
@@ -125,6 +130,13 @@ export function createMockBluetoothService(): BluetoothService {
         wipes: seq,
         strokes: Math.floor(seq / 2),
         records,
+      };
+    },
+
+    onDualReading(callback): Unsubscribe {
+      dualReadingListeners.push(callback);
+      return () => {
+        dualReadingListeners = dualReadingListeners.filter((listener) => listener !== callback);
       };
     },
 

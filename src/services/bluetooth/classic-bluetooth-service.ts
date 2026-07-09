@@ -1,6 +1,6 @@
 import RNBluetoothClassic, { type BluetoothDevice } from 'react-native-bluetooth-classic';
 
-import type { AckMessage, BluetoothDeviceInfo, ConnectionStatus, SessionReport, WiperReading, WipeRecord } from '@/types/wiper';
+import type { AckMessage, BluetoothDeviceInfo, ConnectionStatus, DualWiperReading, SessionReport, WiperReading, WipeRecord } from '@/types/wiper';
 
 import type { BluetoothService, Unsubscribe } from './bluetooth-service';
 import { parseLine, type SessionStartData } from './parse-line';
@@ -21,6 +21,7 @@ export function createClassicBluetoothService(): BluetoothService {
   let dataSubscription: { remove: () => void } | null = null;
   let dataWatchdogHandle: ReturnType<typeof setTimeout> | null = null;
 
+  let dualReadingListeners: ((reading: DualWiperReading) => void)[] = [];
   let readingListeners: ((reading: WiperReading) => void)[] = [];
   let connectionListeners: ((status: ConnectionStatus, device?: BluetoothDeviceInfo) => void)[] = [];
   let pendingAck: { cmd: string; resolve: (ack: AckMessage) => void; timeoutHandle: ReturnType<typeof setTimeout> } | null = null;
@@ -30,6 +31,10 @@ export function createClassicBluetoothService(): BluetoothService {
     resolve: (report: SessionReport) => void;
     timeoutHandle: ReturnType<typeof setTimeout>;
   } | null = null;
+
+  function emitDualReading(reading: DualWiperReading) {
+    dualReadingListeners.forEach((listener) => listener(reading));
+  }
 
   function emitReading(reading: WiperReading) {
     readingListeners.forEach((listener) => listener(reading));
@@ -71,6 +76,10 @@ export function createClassicBluetoothService(): BluetoothService {
     }
 
     switch (message.kind) {
+      case 'dualReading':
+        emitDualReading(message.reading);
+        return;
+
       case 'reading':
         emitReading(message.reading);
         return;
@@ -209,6 +218,13 @@ export function createClassicBluetoothService(): BluetoothService {
           reject(error);
         });
       });
+    },
+
+    onDualReading(callback): Unsubscribe {
+      dualReadingListeners.push(callback);
+      return () => {
+        dualReadingListeners = dualReadingListeners.filter((listener) => listener !== callback);
+      };
     },
 
     onReading(callback): Unsubscribe {

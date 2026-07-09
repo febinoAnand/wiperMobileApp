@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -33,15 +33,15 @@ export function TimerControl({
 
   return (
     <ThemedView type="backgroundElement" style={styles.container}>
-      <ThemedView style={styles.timerColumn}>
+      <View style={styles.timerColumn}>
         <ThemedText type="small" themeColor="textSecondary">
           Time interval
         </ThemedText>
         <ThemedText type="title" style={styles.timer}>
           {formatSeconds(isRunning ? remainingSeconds : intervalSeconds)}
         </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.buttonRow}>
+      </View>
+      <View style={styles.buttonRow}>
         <Pressable
           onPress={onReset}
           style={({ pressed }) => [styles.button, styles.resetButton, pressed && styles.disabled]}>
@@ -61,7 +61,7 @@ export function TimerControl({
             {isRunning ? 'Stop' : 'Start'}
           </ThemedText>
         </Pressable>
-      </ThemedView>
+      </View>
     </ThemedView>
   );
 }

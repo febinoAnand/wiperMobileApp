@@ -1,6 +1,6 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { SessionReportTable } from '@/components/dashboard/session-report-table';
@@ -65,12 +65,12 @@ export default function ReportsScreen() {
                     onPress={() => setExpandedId(isExpanded ? null : entry.id)}
                     style={({ pressed }) => pressed && styles.pressed}>
                     <ThemedView type="backgroundElement" style={styles.entryRow}>
-                      <ThemedView style={styles.entryInfo}>
+                      <View style={styles.entryInfo}>
                         <ThemedText type="smallBold">Wiper {entry.wiperNo}</ThemedText>
                         <ThemedText type="small" themeColor="textSecondary">
                           {formatEntryDate(entry.timestamp)}
                         </ThemedText>
-                      </ThemedView>
+                      </View>
                       <ThemedText type="small" themeColor="textSecondary">
                         {entry.wipes} wipes · {entry.strokes} strokes
                       </ThemedText>

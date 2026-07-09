@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CalibrationStep } from '@/components/calibration/calibration-step';
@@ -10,33 +10,43 @@ import { BottomTabInset, Brand, MaxContentWidth, Spacing } from '@/constants/the
 import { useBluetooth } from '@/contexts/bluetooth-context';
 import { clearCalibration, setCalibration } from '@/services/storage';
 
-type CapturingStep = 'initial' | 'end' | null;
+type Sensor = 'left' | 'right';
+type CapturingStep = `${Sensor}_${'initial' | 'end'}` | null;
 
 export default function CalibrationScreen() {
   const router = useRouter();
-  const { status, latestReading, write, sendCommand } = useBluetooth();
-  const [initialAngle, setInitialAngle] = useState<number | null>(null);
-  const [endAngle, setEndAngle] = useState<number | null>(null);
+  const { status, latestDualReading, write, sendCommand } = useBluetooth();
+
+  const [leftInitial, setLeftInitial] = useState<number | null>(null);
+  const [leftEnd, setLeftEnd] = useState<number | null>(null);
+  const [rightInitial, setRightInitial] = useState<number | null>(null);
+  const [rightEnd, setRightEnd] = useState<number | null>(null);
   const [capturingStep, setCapturingStep] = useState<CapturingStep>(null);
   const [isResetting, setIsResetting] = useState(false);
 
-  const liveAngle = latestReading?.angle ?? 0;
-  const center = initialAngle !== null && endAngle !== null ? (initialAngle + endAngle) / 2 : null;
-  const canSave = center !== null;
+  const liveAngleL = latestDualReading?.angleL ?? 0;
+  const liveAngleR = latestDualReading?.angleR ?? 0;
+
+  const leftCenter = leftInitial !== null && leftEnd !== null ? (leftInitial + leftEnd) / 2 : null;
+  const rightCenter = rightInitial !== null && rightEnd !== null ? (rightInitial + rightEnd) / 2 : null;
+  const canSave = leftCenter !== null && rightCenter !== null;
 
   const capture = useCallback(
-    async (step: 'initial' | 'end') => {
-      setCapturingStep(step);
+    async (sensor: Sensor, step: 'initial' | 'end') => {
+      const key: CapturingStep = `${sensor}_${step}`;
+      setCapturingStep(key);
       try {
-        const ack = await sendCommand({ cmd: step === 'initial' ? 'set_initial' : 'set_end' });
+        const ack = await sendCommand({ cmd: step === 'initial' ? 'set_initial' : 'set_end', sensor });
         if (ack.status !== 'ok') {
           throw new Error(`Device reported status "${ack.status}"`);
         }
-        const angle = ack.angle ?? liveAngle;
-        if (step === 'initial') {
-          setInitialAngle(angle);
+        const angle = ack.angle ?? (sensor === 'left' ? liveAngleL : liveAngleR);
+        if (sensor === 'left') {
+          if (step === 'initial') setLeftInitial(angle);
+          else setLeftEnd(angle);
         } else {
-          setEndAngle(angle);
+          if (step === 'initial') setRightInitial(angle);
+          else setRightEnd(angle);
         }
       } catch {
         Alert.alert('Capture failed', "Couldn't get a response from the device. Make sure it's connected and try again.");
@@ -44,16 +54,17 @@ export default function CalibrationScreen() {
         setCapturingStep(null);
       }
     },
-    [sendCommand, liveAngle],
+    [sendCommand, liveAngleL, liveAngleR],
   );
 
   const handleSave = useCallback(async () => {
-    if (initialAngle === null || endAngle === null) {
-      return;
-    }
-    await setCalibration({ initialAngle, endAngle, center: (initialAngle + endAngle) / 2 });
+    if (!canSave) return;
+    await setCalibration({
+      left: { initialAngle: leftInitial!, endAngle: leftEnd!, center: leftCenter! },
+      right: { initialAngle: rightInitial!, endAngle: rightEnd!, center: rightCenter! },
+    });
     router.back();
-  }, [initialAngle, endAngle, router]);
+  }, [leftInitial, leftEnd, leftCenter, rightInitial, rightEnd, rightCenter, canSave, router]);
 
   const handleResetCalibration = useCallback(async () => {
     setIsResetting(true);
@@ -64,8 +75,10 @@ export default function CalibrationScreen() {
     } finally {
       setIsResetting(false);
     }
-    setInitialAngle(null);
-    setEndAngle(null);
+    setLeftInitial(null);
+    setLeftEnd(null);
+    setRightInitial(null);
+    setRightEnd(null);
     await clearCalibration();
   }, [write]);
 
@@ -73,14 +86,14 @@ export default function CalibrationScreen() {
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <ScrollView contentContainerStyle={styles.content}>
-          <ThemedView style={styles.header}>
+          <View style={styles.header}>
             <ThemedText type="subtitle">Calibration</ThemedText>
             <Pressable onPress={handleResetCalibration} disabled={isResetting}>
               <ThemedText type="link" themeColor="textSecondary">
                 {isResetting ? 'Resetting…' : 'Reset'}
               </ThemedText>
             </Pressable>
-          </ThemedView>
+          </View>
 
           {status !== 'connected' && (
             <ThemedView type="backgroundElement" style={styles.notice}>
@@ -89,33 +102,58 @@ export default function CalibrationScreen() {
           )}
 
           <ThemedText type="small" themeColor="textSecondary">
-            Move the wiper to each extreme and capture both positions to compute the center.
+            Move each wiper to its extreme positions and capture both to compute the center.
           </ThemedText>
 
-          <CalibrationStep
-            title="Initial position"
-            liveAngle={liveAngle}
-            capturedAngle={initialAngle}
-            isCapturing={capturingStep === 'initial'}
-            onCapture={() => capture('initial')}
-          />
+          {/* Wiper Left */}
+          <View style={styles.section}>
+            <ThemedText type="smallBold" style={styles.sectionLabel}>Wiper Left</ThemedText>
+            <CalibrationStep
+              title="Initial position"
+              liveAngle={liveAngleL}
+              capturedAngle={leftInitial}
+              isCapturing={capturingStep === 'left_initial'}
+              onCapture={() => capture('left', 'initial')}
+            />
+            <CalibrationStep
+              title="End position"
+              liveAngle={liveAngleL}
+              capturedAngle={leftEnd}
+              isCapturing={capturingStep === 'left_end'}
+              onCapture={() => capture('left', 'end')}
+            />
+            <ThemedView type="backgroundElement" style={styles.centerCard}>
+              <ThemedText type="small" themeColor="textSecondary">Computed center</ThemedText>
+              <ThemedText type="title" style={styles.centerValue}>
+                {leftCenter !== null ? `${leftCenter.toFixed(1)}°` : '—'}
+              </ThemedText>
+            </ThemedView>
+          </View>
 
-          <CalibrationStep
-            title="End position"
-            liveAngle={liveAngle}
-            capturedAngle={endAngle}
-            isCapturing={capturingStep === 'end'}
-            onCapture={() => capture('end')}
-          />
-
-          <ThemedView type="backgroundElement" style={styles.centerCard}>
-            <ThemedText type="small" themeColor="textSecondary">
-              Computed center
-            </ThemedText>
-            <ThemedText type="title" style={styles.centerValue}>
-              {center !== null ? `${center.toFixed(1)}°` : '—'}
-            </ThemedText>
-          </ThemedView>
+          {/* Wiper Right */}
+          <View style={styles.section}>
+            <ThemedText type="smallBold" style={styles.sectionLabel}>Wiper Right</ThemedText>
+            <CalibrationStep
+              title="Initial position"
+              liveAngle={liveAngleR}
+              capturedAngle={rightInitial}
+              isCapturing={capturingStep === 'right_initial'}
+              onCapture={() => capture('right', 'initial')}
+            />
+            <CalibrationStep
+              title="End position"
+              liveAngle={liveAngleR}
+              capturedAngle={rightEnd}
+              isCapturing={capturingStep === 'right_end'}
+              onCapture={() => capture('right', 'end')}
+            />
+            <ThemedView type="backgroundElement" style={styles.centerCard}>
+              <ThemedText type="small" themeColor="textSecondary">Computed center</ThemedText>
+              <ThemedText type="title" style={styles.centerValue}>
+                {rightCenter !== null ? `${rightCenter.toFixed(1)}°` : '—'}
+              </ThemedText>
+            </ThemedView>
+          </View>
 
           <Pressable
             onPress={handleSave}
@@ -144,8 +182,17 @@ const styles = StyleSheet.create({
   },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   notice: { borderRadius: Spacing.three, padding: Spacing.three },
-  centerCard: { borderRadius: Spacing.three, padding: Spacing.four, alignItems: 'center', gap: Spacing.one },
-  centerValue: { fontSize: 36, lineHeight: 40 },
+  section: { gap: Spacing.two },
+  sectionLabel: { paddingHorizontal: Spacing.one },
+  centerCard: {
+    borderRadius: Spacing.three,
+    paddingHorizontal: Spacing.four,
+    paddingVertical: Spacing.two,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  centerValue: { fontSize: 28, lineHeight: 32 },
   saveButton: {
     backgroundColor: Brand.primary,
     borderRadius: Spacing.five,

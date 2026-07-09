@@ -2,12 +2,13 @@ import { createContext, type ReactNode, useCallback, useContext, useEffect, useM
 
 import { getBluetoothService } from '@/services/bluetooth';
 import { setLastDeviceId } from '@/services/storage';
-import type { AckMessage, BluetoothDeviceInfo, ConnectionStatus, SessionReport, WiperReading } from '@/types/wiper';
+import type { AckMessage, BluetoothDeviceInfo, ConnectionStatus, DualWiperReading, SessionReport, WiperReading } from '@/types/wiper';
 
 type BluetoothContextValue = {
   pairedDevices: BluetoothDeviceInfo[];
   status: ConnectionStatus;
   connectedDevice: BluetoothDeviceInfo | null;
+  latestDualReading: DualWiperReading | null;
   latestReading: WiperReading | null;
   refreshPairedDevices: () => Promise<void>;
   connect: (deviceId: string) => Promise<void>;
@@ -24,11 +25,13 @@ export function BluetoothProvider({ children }: { children: ReactNode }) {
   const [pairedDevices, setPairedDevices] = useState<BluetoothDeviceInfo[]>([]);
   const [status, setStatus] = useState<ConnectionStatus>('disconnected');
   const [connectedDevice, setConnectedDevice] = useState<BluetoothDeviceInfo | null>(null);
+  const [latestDualReading, setLatestDualReading] = useState<DualWiperReading | null>(null);
   const [latestReading, setLatestReading] = useState<WiperReading | null>(null);
 
   useEffect(() => {
     service.listBondedDevices().then(setPairedDevices).catch(() => {});
 
+    const unsubscribeDualReading = service.onDualReading(setLatestDualReading);
     const unsubscribeReading = service.onReading(setLatestReading);
     const unsubscribeConnection = service.onConnectionChange((nextStatus, device) => {
       setStatus(nextStatus);
@@ -36,6 +39,7 @@ export function BluetoothProvider({ children }: { children: ReactNode }) {
     });
 
     return () => {
+      unsubscribeDualReading();
       unsubscribeReading();
       unsubscribeConnection();
     };
@@ -79,6 +83,7 @@ export function BluetoothProvider({ children }: { children: ReactNode }) {
       pairedDevices,
       status,
       connectedDevice,
+      latestDualReading,
       latestReading,
       refreshPairedDevices,
       connect,
@@ -91,6 +96,7 @@ export function BluetoothProvider({ children }: { children: ReactNode }) {
       pairedDevices,
       status,
       connectedDevice,
+      latestDualReading,
       latestReading,
       refreshPairedDevices,
       connect,

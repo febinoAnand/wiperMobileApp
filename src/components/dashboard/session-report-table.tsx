@@ -1,4 +1,4 @@
-import { ScrollView, StyleSheet } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -13,8 +13,8 @@ export type SessionReportTableProps = {
 
 export function SessionReportTable({ records }: SessionReportTableProps) {
   return (
-    <ThemedView style={styles.container}>
-      <ThemedView type="backgroundElement" style={[styles.row, styles.headerRow]}>
+    <View style={styles.container}>
+      <ThemedView type="backgroundSelected" style={[styles.row, styles.headerRow]}>
         <ThemedText type="smallBold" style={styles.seqCell}>
           Seq
         </ThemedText>
@@ -36,7 +36,7 @@ export function SessionReportTable({ records }: SessionReportTableProps) {
       ) : (
         <ScrollView style={styles.scroll} nestedScrollEnabled showsVerticalScrollIndicator={false}>
           {records.map((record, index) => (
-            <ThemedView key={record.seq} style={[styles.row, index % 2 === 1 && styles.rowAlt]}>
+            <View key={record.seq} style={[styles.row, index % 2 === 1 && styles.rowAlt]}>
               <ThemedText type="small" style={styles.seqCell}>
                 {record.seq}
               </ThemedText>
@@ -49,11 +49,11 @@ export function SessionReportTable({ records }: SessionReportTableProps) {
               <ThemedText type="small" style={styles.cell}>
                 {record.pressure.toFixed(2)} bar
               </ThemedText>
-            </ThemedView>
+            </View>
           ))}
         </ScrollView>
       )}
-    </ThemedView>
+    </View>
   );
 }
 

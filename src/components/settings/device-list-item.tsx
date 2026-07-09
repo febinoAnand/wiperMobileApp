@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -16,12 +16,12 @@ export function DeviceListItem({ device, isConnected, isBusy, onPress }: DeviceL
   return (
     <Pressable onPress={onPress} disabled={isBusy} style={({ pressed }) => pressed && styles.pressed}>
       <ThemedView type="backgroundElement" style={styles.row}>
-        <ThemedView style={styles.info}>
+        <View style={styles.info}>
           <ThemedText type="smallBold">{device.name}</ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
             {device.id}
           </ThemedText>
-        </ThemedView>
+        </View>
         <ThemedText type="small" themeColor={isConnected ? 'text' : 'textSecondary'}>
           {isConnected ? 'Connected' : isBusy ? 'Connecting…' : 'Connect'}
         </ThemedText>

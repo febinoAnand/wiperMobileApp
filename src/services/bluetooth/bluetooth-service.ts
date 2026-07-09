@@ -1,4 +1,4 @@
-import type { AckMessage, BluetoothDeviceInfo, ConnectionStatus, SessionReport, WiperReading } from '@/types/wiper';
+import type { AckMessage, BluetoothDeviceInfo, ConnectionStatus, DualWiperReading, SessionReport, WiperReading } from '@/types/wiper';
 
 export type Unsubscribe = () => void;
 
@@ -12,6 +12,7 @@ export type BluetoothService = {
   sendCommand(payload: { cmd: string } & Record<string, unknown>, timeoutMs?: number): Promise<AckMessage>;
   /** Sends `{"cmd":"resend","wiper_no":wiperNo}` and assembles the session_start/batch(es)/session_end stream into a report. */
   fetchSessionReport(wiperNo: number | string, timeoutMs?: number): Promise<SessionReport>;
+  onDualReading(callback: (reading: DualWiperReading) => void): Unsubscribe;
   onReading(callback: (reading: WiperReading) => void): Unsubscribe;
   onConnectionChange(callback: (status: ConnectionStatus, device?: BluetoothDeviceInfo) => void): Unsubscribe;
 };

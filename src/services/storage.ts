@@ -15,7 +15,11 @@ export const DEFAULT_TIME_INTERVAL_SECONDS = 60;
 
 export async function getCalibration(): Promise<CalibrationData | null> {
   const raw = await AsyncStorage.getItem(KEYS.calibration);
-  return raw ? (JSON.parse(raw) as CalibrationData) : null;
+  if (!raw) return null;
+  const parsed = JSON.parse(raw) as CalibrationData;
+  // Reject old single-wiper calibration data (pre-dual-sensor schema)
+  if (!parsed?.left || !parsed?.right) return null;
+  return parsed;
 }
 
 export async function setCalibration(calibration: CalibrationData): Promise<void> {

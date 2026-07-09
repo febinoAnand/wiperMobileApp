@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -15,12 +15,12 @@ export type CalibrationStepProps = {
 export function CalibrationStep({ title, liveAngle, capturedAngle, isCapturing, onCapture }: CalibrationStepProps) {
   return (
     <ThemedView type="backgroundElement" style={styles.container}>
-      <ThemedView style={styles.header}>
+      <View style={styles.header}>
         <ThemedText type="smallBold">{title}</ThemedText>
         <ThemedText type="small" themeColor="textSecondary">
           {capturedAngle !== null ? `Captured: ${capturedAngle.toFixed(1)}°` : `Live: ${liveAngle.toFixed(1)}°`}
         </ThemedText>
-      </ThemedView>
+      </View>
       <Pressable
         onPress={onCapture}
         disabled={isCapturing}

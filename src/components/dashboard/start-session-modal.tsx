@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Modal, Pressable, StyleSheet, TextInput } from 'react-native';
+import { Modal, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -44,7 +44,7 @@ export function StartSessionModal({ visible, onCancel, onConfirm }: StartSession
             placeholderTextColor={theme.textSecondary}
             autoFocus
           />
-          <ThemedView style={styles.actions}>
+          <View style={styles.actions}>
             <Pressable onPress={handleCancel} style={({ pressed }) => [styles.button, pressed && styles.pressed]}>
               <ThemedText type="smallBold" themeColor="textSecondary">
                 Cancel
@@ -58,7 +58,7 @@ export function StartSessionModal({ visible, onCancel, onConfirm }: StartSession
                 OK
               </ThemedText>
             </Pressable>
-          </ThemedView>
+          </View>
         </ThemedView>
       </ThemedView>
     </Modal>

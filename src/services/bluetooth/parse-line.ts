@@ -1,4 +1,4 @@
-import type { AckMessage, WiperReading, WipeRecord } from '@/types/wiper';
+import type { AckMessage, DualWiperReading, WiperReading, WipeRecord } from '@/types/wiper';
 
 export type SessionStartData = {
   wiperNo: number | string;
@@ -9,6 +9,7 @@ export type SessionStartData = {
 };
 
 export type ParsedMessage =
+  | { kind: 'dualReading'; reading: DualWiperReading }
   | { kind: 'reading'; reading: WiperReading }
   | { kind: 'ack'; ack: AckMessage }
   | { kind: 'sessionStart'; data: SessionStartData }
@@ -64,6 +65,9 @@ export function parseLine(line: string): ParsedMessage | null {
     if (typeof value.angle === 'number') {
       ack.angle = value.angle;
     }
+    if (typeof value.sensor === 'string') {
+      ack.sensor = value.sensor;
+    }
     return { kind: 'ack', ack };
   }
 
@@ -104,6 +108,13 @@ export function parseLine(line: string): ParsedMessage | null {
     return { kind: 'sessionEnd' };
   }
 
+  if (typeof value.angleL === 'number' && typeof value.angleR === 'number' && typeof value.pressure === 'number') {
+    return {
+      kind: 'dualReading',
+      reading: { angleL: value.angleL, angleR: value.angleR, pressure: value.pressure, timestamp: Date.now() },
+    };
+  }
+
   if (typeof value.angle === 'number' && typeof value.pressure === 'number') {
     const reading: WiperReading = { angle: value.angle, pressure: value.pressure, timestamp: Date.now() };
     if (typeof value.seq === 'number') {
@@ -111,6 +122,9 @@ export function parseLine(line: string): ParsedMessage | null {
     }
     if (typeof value.dir === 'string') {
       reading.dir = value.dir;
+    }
+    if (typeof value.wiper_no === 'number' || typeof value.wiper_no === 'string') {
+      reading.wiper_no = value.wiper_no;
     }
     return { kind: 'reading', reading };
   }
