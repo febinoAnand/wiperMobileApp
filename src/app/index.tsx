@@ -180,7 +180,7 @@ export default function DashboardScreen() {
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           {/* Header */}
           <ThemedView style={styles.header}>

@@ -84,7 +84,7 @@ export default function CalibrationScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
         <ScrollView contentContainerStyle={styles.content}>
           <View style={styles.header}>
             <ThemedText type="subtitle">Calibration</ThemedText>

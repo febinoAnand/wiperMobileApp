@@ -41,7 +41,7 @@ export default function ReportsScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
         <ScrollView contentContainerStyle={styles.content}>
           <ThemedView style={styles.header}>
             <ThemedText type="subtitle">Reports</ThemedText>
