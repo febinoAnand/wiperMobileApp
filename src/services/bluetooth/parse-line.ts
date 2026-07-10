@@ -1,3 +1,4 @@
+import { log } from '@/constants/debug';
 import type { AckMessage, DualWiperReading, WiperReading, WipeRecord } from '@/types/wiper';
 
 export type SessionStartData = {
@@ -99,7 +100,7 @@ export function parseLine(line: string): ParsedMessage | null {
   ) {
     const records = value.wipes.map(parseWipeRecord).filter((record): record is WipeRecord => record !== null);
     if (records.length !== value.wipes.length) {
-      console.log(`[bluetooth] batch ${value.index}/${value.total}: dropped ${value.wipes.length - records.length} malformed wipe(s)`, value.wipes);
+      log(`[bluetooth] batch ${value.index}/${value.total}: dropped ${value.wipes.length - records.length} malformed wipe(s)`, value.wipes);
     }
     return { kind: 'batch', index: value.index, total: value.total, records };
   }

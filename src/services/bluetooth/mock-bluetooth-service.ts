@@ -1,3 +1,4 @@
+import { log } from '@/constants/debug';
 import type { AckMessage, BluetoothDeviceInfo, ConnectionStatus, DualWiperReading, SessionReport, WiperReading, WipeRecord } from '@/types/wiper';
 
 import type { BluetoothService, Unsubscribe } from './bluetooth-service';
@@ -87,7 +88,7 @@ export function createMockBluetoothService(): BluetoothService {
     },
 
     async write(data: string) {
-      console.log('[mock bluetooth] write:', data);
+      log('[mock bluetooth] write:', data);
       try {
         const parsed = JSON.parse(data);
         if (parsed?.cmd === 'start') {
@@ -106,13 +107,13 @@ export function createMockBluetoothService(): BluetoothService {
     },
 
     async sendCommand(payload): Promise<AckMessage> {
-      console.log('[mock bluetooth] sendCommand:', payload);
+      log('[mock bluetooth] sendCommand:', payload);
       await new Promise((resolve) => setTimeout(resolve, 150));
       return { type: 'ack', cmd: payload.cmd, status: 'ok', angle: currentAngle };
     },
 
     async fetchSessionReport(wiperNo): Promise<SessionReport> {
-      console.log('[mock bluetooth] fetchSessionReport for', wiperNo);
+      log('[mock bluetooth] fetchSessionReport for', wiperNo);
       await new Promise((resolve) => setTimeout(resolve, 300));
       const records: WipeRecord[] = [];
       for (let i = 1; i <= seq; i += 1) {

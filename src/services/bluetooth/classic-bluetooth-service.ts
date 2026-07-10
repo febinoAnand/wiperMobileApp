@@ -1,5 +1,6 @@
 import RNBluetoothClassic, { type BluetoothDevice } from 'react-native-bluetooth-classic';
 
+import { log } from '@/constants/debug';
 import type { AckMessage, BluetoothDeviceInfo, ConnectionStatus, DualWiperReading, SessionReport, WiperReading, WipeRecord } from '@/types/wiper';
 
 import type { BluetoothService, Unsubscribe } from './bluetooth-service';
@@ -68,7 +69,7 @@ export function createClassicBluetoothService(): BluetoothService {
   // incoming bytes on `\n` and delivers one complete message (delimiter stripped) per event.
   function handleData(event: { data: string }) {
     resetDataWatchdog();
-    console.log('[bluetooth] received:', event.data);
+    log('[bluetooth] received:', event.data);
 
     const message = parseLine(event.data);
     if (!message) {
@@ -99,7 +100,7 @@ export function createClassicBluetoothService(): BluetoothService {
         return;
 
       case 'batch':
-        console.log(`[bluetooth] batch ${message.index}/${message.total}:`, message.records);
+        log(`[bluetooth] batch ${message.index}/${message.total}:`, message.records);
         if (pendingReport) {
           pendingReport.records.push(...message.records);
         }
@@ -119,7 +120,7 @@ export function createClassicBluetoothService(): BluetoothService {
     if (!connectedDevice) {
       throw new Error('Not connected to a device');
     }
-    console.log('[bluetooth] send:', data);
+    log('[bluetooth] send:', data);
     await connectedDevice.write(data.endsWith('\n') ? data : `${data}\n`);
   }
 
